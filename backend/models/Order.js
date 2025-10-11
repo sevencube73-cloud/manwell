@@ -7,26 +7,26 @@ const orderItemSchema = new mongoose.Schema({
 });
 
 const orderSchema = new mongoose.Schema({
+  orderId: { type: String, unique: true }, // M01, M02, etc.
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   orderItems: [orderItemSchema],
-  paymentMethod: String,
-  totalPrice: Number,
-  status: { type: String, default: 'Pending' }, // e.g., Pending, Processing, Shipped, Delivered
+  shippingAddress: { type: Object },
+  paymentMethod: { type: String },
+  totalPrice: { type: Number },
+  status: { type: String, default: 'Pending' }, // Pending, Processing, Shipped, Delivered, Cancelled
   deliveryAgent: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   deliveryStatus: { type: String, enum: ['Assigned', 'In Transit', 'Delivered'], default: 'Assigned' },
-  // other fields...
 }, { timestamps: true });
 
+// Auto-generate sequential orderId
 orderSchema.pre('save', async function (next) {
   if (this.isNew) {
-    // Find the last order by orderId (descending)
-    const lastOrder = await mongoose.models.Order.findOne({ orderId: /^M\d+$/ }, {}, { sort: { createdAt: -1 } });
+    const lastOrder = await mongoose.models.Order.findOne({ orderId: /^M\d+$/ })
+      .sort({ createdAt: -1 });
     let nextNumber = 1;
     if (lastOrder && lastOrder.orderId) {
       const match = lastOrder.orderId.match(/M(\d+)/);
-      if (match) {
-        nextNumber = parseInt(match[1], 10) + 1;
-      }
+      if (match) nextNumber = parseInt(match[1], 10) + 1;
     }
     this.orderId = `M${nextNumber.toString().padStart(2, '0')}`;
   }
@@ -35,4 +35,3 @@ orderSchema.pre('save', async function (next) {
 
 const Order = mongoose.model('Order', orderSchema);
 export default Order;
-
