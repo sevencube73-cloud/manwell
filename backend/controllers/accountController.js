@@ -23,7 +23,7 @@ export const sendActivationEmail = async (req, res) => {
       from: process.env.SMTP_USER,
       to: user.email,
       subject: 'Activate Your Account',
-      text: `Activate your account: http://localhost:3000/activate-account?token=${token}`
+      text: `Activate your account: http://https://manwellfrontend-6scg.onrender.com//activate-account?token=${token}`
     });
     res.json({ message: 'Activation email sent' });
   } catch (error) {
