@@ -6,33 +6,36 @@ const orderItemSchema = new mongoose.Schema({
   price: { type: Number, required: true },
 });
 
-const orderSchema = new mongoose.Schema({
-  orderId: { type: String, unique: true }, // sequential like M01, M02
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  orderItems: [orderItemSchema],
-  shippingAddress: {
-    address: String,
-    city: String,
-    postalCode: String,
-    country: String,
+const orderSchema = new mongoose.Schema(
+  {
+    orderId: { type: String, unique: true },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    orderItems: [orderItemSchema],
+    shippingAddress: {
+      address: String,
+      city: String,
+      postalCode: String,
+      country: String,
+    },
+    paymentMethod: { type: String, required: true },
+    totalPrice: { type: Number, required: true },
+    status: { type: String, default: 'Pending' }, // Pending, Processing, Shipped, Delivered, Cancelled
+    deliveryAgent: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    deliveryStatus: { type: String, enum: ['Assigned', 'In Transit', 'Delivered'], default: 'Assigned' },
   },
-  paymentMethod: String,
-  totalPrice: Number,
-  status: { type: String, default: 'Pending' }, // Pending, Processing, Shipped, Delivered, Cancelled, Returned
-  deliveryAgent: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-  deliveryStatus: { type: String, enum: ['Assigned', 'In Transit', 'Delivered'], default: 'Assigned' },
-}, { timestamps: true });
+  { timestamps: true }
+);
 
-// Auto-generate sequential orderId
+// Auto-generate orderId
 orderSchema.pre('save', async function (next) {
-  if (this.isNew) {
-    const lastOrder = await mongoose.models.Order.findOne({ orderId: /^M\d+$/ }).sort({ createdAt: -1 });
+  if (!this.orderId) {
+    const lastOrder = await mongoose.models.Order.findOne({}, {}, { sort: { createdAt: -1 } });
     let nextNumber = 1;
     if (lastOrder && lastOrder.orderId) {
       const match = lastOrder.orderId.match(/M(\d+)/);
       if (match) nextNumber = parseInt(match[1], 10) + 1;
     }
-    this.orderId = `M${nextNumber.toString().padStart(2, '0')}`;
+    this.orderId = `M${nextNumber.toString().padStart(3, '0')}`;
   }
   next();
 });
