@@ -30,7 +30,7 @@ router.post("/initiate-payment", async (req, res) => {
       amount,
       description,
       currency: "KES",
-      callback_url: "http://localhost:3000/payment/callback",
+      callback_url: "https://manwellfrontend-6scg.onrender.com//payment/callback",
       notification_id: "your-notification-id",
       billing_address: {
         email_address: email,

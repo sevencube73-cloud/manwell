@@ -1,21 +1,14 @@
-import nodemailer from "nodemailer";
-import { Resend } from "resend";
+import createTransporter from '../config/email.js';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-const sendEmail = async (to, subject, html) => {
-  try {
-    await resend.emails.send({
-      from: process.env.EMAIL_FROM,
-      to,
-      subject,
-      html,
-    });
-    console.log("✅ Email sent successfully to:", to);
-  } catch (error) {
-    console.error("❌ Error sending email:", error);
-    throw new Error("Email not sent");
-  }
+const sendEmail = async ({ email, subject, message }) => {
+  const transporter = createTransporter();
+  const mailOptions = {
+    from: `"MANWELL STORE" <${process.env.SMTP_USER}>`,
+    to: email,
+    subject,
+    html: message,
+  };
+  await transporter.sendMail(mailOptions);
 };
 
-export default sendEmail; // ✅ important
+export default sendEmail;
