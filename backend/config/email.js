@@ -2,12 +2,12 @@ import nodemailer from 'nodemailer';
 
 const createTransporter = () => {
   return nodemailer.createTransport({
-    host: smtp.gmail.com,
+    host: process.env.SMTP_HOST,
     port: 587,
     secure: false,
     auth: {
-      user: muzamilinc@gmail.com,
-      pass: ycqvqvzdpkvkwikg,
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
     },
   });
 };
