@@ -94,7 +94,7 @@ export const requestPasswordReset = async (req, res) => {
       from: process.env.SMTP_USER,
       to: user.email,
       subject: 'Password Reset',
-      text: `Reset your password: http://localhost:3000/reset-password?token=${token}`
+      text: `Reset your password: http://https://manwellfrontend-6scg.onrender.com/reset-password?token=${token}`
     });
     res.json({ message: 'Password reset email sent' });
   } catch (error) {
