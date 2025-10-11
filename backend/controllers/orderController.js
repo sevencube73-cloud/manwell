@@ -12,17 +12,10 @@ export const createOrder = async (req, res) => {
     for (const item of orderItems) {
       const product = await Product.findById(item.product);
       if (!product) return res.status(404).json({ message: `Product not found: ${item.product}` });
-      if (product.stock < 1) return res.status(400).json({ message: `Product is out of stock.` });
-
       const qtyToBuy = Math.min(item.qty, product.stock);
       product.stock -= qtyToBuy;
       await product.save();
-
-      processedOrderItems.push({
-        product: product._id,
-        qty: qtyToBuy,
-        price: product.price,
-      });
+      processedOrderItems.push({ product: product._id, qty: qtyToBuy, price: product.price });
     }
 
     const order = new Order({
@@ -31,7 +24,7 @@ export const createOrder = async (req, res) => {
       shippingAddress,
       paymentMethod,
       totalPrice,
-      status: 'Pending',
+      status: paymentMethod === 'Pay on Delivery' ? 'Pending' : 'Pending',
     });
 
     await order.save();
@@ -41,36 +34,23 @@ export const createOrder = async (req, res) => {
   }
 };
 
-// Get logged-in user's orders
-export const getMyOrders = async (req, res) => {
-  try {
-    const orders = await Order.find({ user: req.user._id })
-      .populate({ path: 'orderItems.product', model: 'Product' })
-      .sort({ createdAt: -1 });
-    res.json(orders);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching orders', error: error.message });
-  }
-};
-
-// Admin: Get all orders
+// Get all orders (admin)
 export const getAllOrders = async (req, res) => {
   try {
-    const orders = await Order.find()
-      .populate('user', 'name email phone')
-      .sort({ createdAt: -1 });
+    const orders = await Order.find().populate('user', 'name email phoneNumber').sort({ createdAt: -1 });
     res.json(orders);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching orders', error: error.message });
   }
 };
 
-// Admin: Get order by ID
+// Get single order by ID
 export const getOrderById = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
-      .populate('user', 'name email phone')
-      .populate('orderItems.product');
+      .populate('user', 'name email phoneNumber')
+      .populate('orderItems.product', 'name price');
+
     if (!order) return res.status(404).json({ message: 'Order not found' });
     res.json(order);
   } catch (error) {
@@ -78,7 +58,19 @@ export const getOrderById = async (req, res) => {
   }
 };
 
-// Admin: Update order status
+// Get orders of the logged-in user
+export const getMyOrders = async (req, res) => {
+  try {
+    const orders = await Order.find({ user: req.user._id })
+      .populate('orderItems.product', 'name price')
+      .sort({ createdAt: -1 });
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching orders', error: error.message });
+  }
+};
+
+// Update order status (admin)
 export const updateOrderStatus = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
