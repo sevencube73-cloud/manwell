@@ -1,14 +1,17 @@
-import createTransporter from '../config/email.js';
+import { Resend } from "resend";
 
-const sendEmail = async ({ email, subject, message }) => {
-  const transporter = createTransporter();
-  const mailOptions = {
-    from: `"MANWELL STORE" <${process.env.SMTP_USER}>`,
-    to: email,
-    subject,
-    html: message,
-  };
-  await transporter.sendMail(mailOptions);
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+export const sendEmail = async (to, subject, html) => {
+  try {
+    const response = await resend.emails.send({
+      from: "onboarding@resend.dev",
+      to,
+      subject,
+      html,
+    });
+    console.log("✅ Email sent:", response);
+  } catch (error) {
+    console.error("❌ Resend email error:", error);
+  }
 };
-
-export default sendEmail;
