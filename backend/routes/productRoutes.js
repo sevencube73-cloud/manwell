@@ -5,6 +5,27 @@ import parser from '../middleware/upload.js';
 
 const router = express.Router();
 
+import Product from "../models/product.js";
+
+
+// Get the latest added product
+router.get("/latest", async (req, res) => {
+  try {
+    const latestProduct = await Product.findOne().sort({ createdAt: -1 });
+    if (!latestProduct) {
+      return res.status(404).json({ message: "No products found" });
+    }
+    res.json(latestProduct);
+  } catch (error) {
+    console.error("Error fetching latest product:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+
+
+
+
 // Public
 router.get('/', getProducts);
 router.get('/categories', getCategories);

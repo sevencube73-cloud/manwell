@@ -2,6 +2,25 @@ import Product from '../models/product.js';
 import cloudinary from '../config/cloudinary.js';
 
 // List products (with optional search and category filter)
+
+
+export const getLatestProduct = async (req, res) => {
+  try {
+    const latestProduct = await Product.findOne().sort({ createdAt: -1 }); // latest by date
+    if (!latestProduct) {
+      return res.status(404).json({ message: "No products found" });
+    }
+    res.json(latestProduct);
+  } catch (error) {
+    console.error("Error fetching latest product:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+
+
+
 export const getProducts = async (req, res) => {
   const keyword = req.query.keyword
     ? { name: { $regex: req.query.keyword, $options: 'i' } }

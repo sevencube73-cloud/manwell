@@ -23,6 +23,7 @@ import pesapalRoutes from "./routes/pesapalRoutes.js";
 import mpesaRoutes from "./routes/mpesaRoutes.js";
 
 
+import productRoutes from "./routes/productRoutes.js";
 
 // Connect to DB
 connectDB();
