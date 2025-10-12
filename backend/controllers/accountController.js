@@ -22,7 +22,7 @@ export const sendActivationEmail = async (req, res) => {
     await user.save();
 
     await resend.emails.send({
-      from: 'muzamilinc@gmail.com',
+      from: 'onboarding@resend.dev',
       to: user.email,
       subject: 'Activate Your Account',
       html: `
