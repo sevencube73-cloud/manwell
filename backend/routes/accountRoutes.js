@@ -4,9 +4,9 @@ import {
   changePassword,
   requestPasswordReset,
   resetPassword,
-  activateAccount,
+  // activateAccount,
   sendActivationEmail,
-  activateAccountByToken
+  // activateAccountByToken
 } from '../controllers/accountController.js';
 
 const router = express.Router();
