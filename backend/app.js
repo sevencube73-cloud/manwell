@@ -20,10 +20,17 @@ import accountRoutes from "./routes/accountRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import pesapalRoutes from "./routes/pesapalRoutes.js";
 
+import mpesaRoutes from "./routes/mpesaRoutes.js";
+
+
+
 // Connect to DB
 connectDB();
 
 const app = express();
+
+
+app.use("/api/mpesa", mpesaRoutes);
 
 app.use(cors());
 app.use(express.json());
