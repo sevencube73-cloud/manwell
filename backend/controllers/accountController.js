@@ -1,99 +1,176 @@
-import crypto from "crypto";
-import bcrypt from "bcryptjs";
 import User from "../models/User.js";
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const CLIENT_URL = process.env.CLIENT_URL;
 
-// ✅ Helper: Send Email using Resend
-const sendEmail = async (to, subject, html) => {
+/**
+ * 🔹 Change user password (logged-in user)
+ */
+export const changePassword = async (req, res) => {
   try {
-    const response = await resend.emails.send({
-      from: "onboarding@resend.dev",
-      to,
-      subject,
-      html,
-    });
-    console.log("✅ Email sent:", response.id);
+    const { oldPassword, newPassword } = req.body;
+    if (!oldPassword || !newPassword)
+      return res.status(400).json({ message: "Old and new password required." });
+
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: "User not found." });
+
+    const isMatch = await bcrypt.compare(oldPassword, user.password);
+    if (!isMatch)
+      return res.status(400).json({ message: "Old password incorrect." });
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+
+    res.status(200).json({ message: "Password changed successfully!" });
   } catch (error) {
-    console.error("❌ Error sending email:", error);
+    console.error("Change password error:", error);
+    res.status(500).json({ message: "Error changing password." });
   }
 };
 
-// ✅ Request Password Reset
+/**
+ * 🔹 Request password reset (send reset email)
+ */
 export const requestPasswordReset = async (req, res) => {
   try {
     const { email } = req.body;
-    const user = await User.findOne({ email });
+    if (!email)
+      return res.status(400).json({ message: "Email required." });
 
+    const user = await User.findOne({ email });
     if (!user)
       return res.status(404).json({ message: "User not found." });
 
-    // Generate token
-    const resetToken = crypto.randomBytes(32).toString("hex");
-    const resetTokenHash = crypto
-      .createHash("sha256")
-      .update(resetToken)
-      .digest("hex");
-
-    // Save token and expiration
-    user.resetPasswordToken = resetTokenHash;
-    user.resetPasswordExpire = Date.now() + 60 * 60 * 1000; // 1 hour
+    const token = crypto.randomBytes(32).toString("hex");
+    user.verificationToken = token;
     await user.save();
 
-    const resetUrl = `${CLIENT_URL}/reset-password?token=${resetToken}`;
-    const message = `
-      <h2>Password Reset Request</h2>
-      <p>Hi ${user.name || "there"},</p>
-      <p>Click the link below to reset your password:</p>
-      <a href="${resetUrl}" style="background:#007bff;color:#fff;padding:10px 20px;text-decoration:none;border-radius:5px;">Reset Password</a>
-      <p>This link expires in 1 hour.</p>
-    `;
+    const resetLink = `${process.env.CLIENT_URL}/reset-password?token=${token}`;
 
-    await sendEmail(user.email, "Password Reset Request", message);
-
-    res.status(200).json({
-      message: "Reset email sent! Check your inbox.",
+    await resend.emails.send({
+      from: "Manwell <no-reply@manwell.app>",
+      to: email,
+      subject: "Password Reset Request",
+      html: `
+        <h2>Password Reset</h2>
+        <p>You requested to reset your password. Click below to proceed:</p>
+        <a href="${resetLink}" style="padding:10px 15px;background:#007bff;color:white;border-radius:6px;text-decoration:none;">Reset Password</a>
+        <p>If you didn’t request this, please ignore this email.</p>
+      `,
     });
+
+    res.status(200).json({ message: "Password reset email sent!" });
   } catch (error) {
     console.error("Password reset email error:", error);
-    res.status(500).json({ message: "Error sending reset email." });
+    res.status(500).json({ message: "Failed to send reset email." });
   }
 };
 
-// ✅ Reset Password
+/**
+ * 🔹 Reset password using token
+ */
 export const resetPassword = async (req, res) => {
   try {
     const { token, newPassword } = req.body;
+    if (!token || !newPassword)
+      return res.status(400).json({ message: "Token and new password required." });
 
-    // Hash token to match DB
-    const resetTokenHash = crypto
-      .createHash("sha256")
-      .update(token)
-      .digest("hex");
-
-    const user = await User.findOne({
-      resetPasswordToken: resetTokenHash,
-      resetPasswordExpire: { $gt: Date.now() },
-    });
-
+    const user = await User.findOne({ verificationToken: token });
     if (!user)
       return res.status(400).json({ message: "Invalid or expired token." });
 
-    // Hash new password
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(newPassword, salt);
-
-    // Clear reset fields
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpire = undefined;
-
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.verificationToken = undefined;
     await user.save();
 
     res.status(200).json({ message: "Password reset successful!" });
   } catch (error) {
     console.error("Reset password error:", error);
     res.status(500).json({ message: "Error resetting password." });
+  }
+};
+
+/**
+ * 🔹 Send account activation email
+ */
+export const sendActivationEmail = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email)
+      return res.status(400).json({ message: "Email required." });
+
+    const user = await User.findOne({ email });
+    if (!user)
+      return res.status(404).json({ message: "User not found." });
+    if (user.isActive)
+      return res.status(400).json({ message: "Account already active." });
+
+    const token = crypto.randomBytes(32).toString("hex");
+    user.verificationToken = token;
+    await user.save();
+
+    const activationLink = `${process.env.CLIENT_URL}/activate-account?token=${token}`;
+
+    await resend.emails.send({
+      from: "Manwell <no-reply@manwell.app>",
+      to: email,
+      subject: "Activate Your Manwell Account",
+      html: `
+        <h2>Welcome to Manwell!</h2>
+        <p>Click below to activate your account:</p>
+        <a href="${activationLink}" style="padding:10px 15px;background:#28a745;color:white;border-radius:6px;text-decoration:none;">Activate Account</a>
+      `,
+    });
+
+    res.status(200).json({ message: "Activation email sent!" });
+  } catch (error) {
+    console.error("Activation email error:", error);
+    res.status(500).json({ message: "Failed to send activation email." });
+  }
+};
+
+/**
+ * 🔹 Activate account using token
+ */
+export const activateAccountByToken = async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token)
+      return res.status(400).json({ message: "Token required." });
+
+    const user = await User.findOne({ verificationToken: token });
+    if (!user)
+      return res.status(400).json({ message: "Invalid or expired token." });
+
+    user.isActive = true;
+    user.verificationToken = undefined;
+    await user.save();
+
+    res.status(200).json({ message: "Account activated successfully!" });
+  } catch (error) {
+    console.error("Account activation error:", error);
+    res.status(500).json({ message: "Error activating account." });
+  }
+};
+
+/**
+ * 🔹 Admin manual activation (fallback)
+ */
+export const activateAccount = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user)
+      return res.status(404).json({ message: "User not found." });
+
+    user.isActive = true;
+    await user.save();
+
+    res.status(200).json({ message: "Account activated successfully by admin!" });
+  } catch (error) {
+    console.error("Admin activation error:", error);
+    res.status(500).json({ message: "Error activating account." });
   }
 };
