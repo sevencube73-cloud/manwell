@@ -22,6 +22,8 @@ import pesapalRoutes from "./routes/pesapalRoutes.js";
 
 import mpesaRoutes from "./routes/mpesaRoutes.js";
 
+import contactRoutes from './routes/contactRoutes.js';
+
 
 
 
@@ -30,7 +32,7 @@ connectDB();
 
 const app = express();
 
-
+app.use('/api/contact', contactRoutes);
 app.use("/api/mpesa", mpesaRoutes);
 
 app.use(cors());
