@@ -30,7 +30,7 @@ const app = express();
 app.use(
   cors({
     origin: [
-      "https://manwellfrontend-6scg.onrender.com", // Your deployed frontend
+      "https://manwellstore.muzamilafey.digital/", // Your deployed frontend
       "http://localhost:3000", // For local testing
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
