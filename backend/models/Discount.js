@@ -1,4 +1,3 @@
-// models/Discount.js
 import mongoose from 'mongoose';
 
 const DiscountSchema = new mongoose.Schema({
@@ -13,5 +12,4 @@ const DiscountSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
-const Discount = mongoose.model('Discount', DiscountSchema);
-export default Discount;
+export default mongoose.model('Discount', DiscountSchema);
