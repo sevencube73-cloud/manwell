@@ -1,12 +1,11 @@
-const mongoose = require('mongoose');
+// models/Discount.js
+import mongoose from 'mongoose';
 
 const DiscountSchema = new mongoose.Schema({
   name: { type: String, required: true },
   description: String,
-  // type: percent or fixed
   discountType: { type: String, enum: ['percent', 'fixed'], required: true },
   amount: { type: Number, required: true },
-  // applyTo: product id or null for global
   product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', default: null },
   startsAt: { type: Date, default: Date.now },
   endsAt: { type: Date },
@@ -14,4 +13,5 @@ const DiscountSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
-module.exports = mongoose.model('Discount', DiscountSchema);
+const Discount = mongoose.model('Discount', DiscountSchema);
+export default Discount;
