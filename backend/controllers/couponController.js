@@ -1,7 +1,7 @@
-const Coupon = require('../models/Coupon');
+import Coupon from '../models/Coupon.js';
 
 // Create a new coupon (admin)
-exports.createCoupon = async (req, res) => {
+export const createCoupon = async (req, res) => {
   try {
     const coupon = new Coupon(req.body);
     await coupon.save();
@@ -12,7 +12,7 @@ exports.createCoupon = async (req, res) => {
 };
 
 // Get all coupons (admin)
-exports.getAllCoupons = async (req, res) => {
+export const getAllCoupons = async (req, res) => {
   try {
     const coupons = await Coupon.find();
     res.json(coupons);
@@ -22,7 +22,7 @@ exports.getAllCoupons = async (req, res) => {
 };
 
 // Validate a coupon (user side)
-exports.validateCoupon = async (req, res) => {
+export const validateCoupon = async (req, res) => {
   try {
     const { code, orderValue } = req.body;
     const coupon = await Coupon.findOne({ code: code.toUpperCase(), active: true });
@@ -51,7 +51,7 @@ exports.validateCoupon = async (req, res) => {
 };
 
 // Update coupon (admin)
-exports.updateCoupon = async (req, res) => {
+export const updateCoupon = async (req, res) => {
   try {
     const coupon = await Coupon.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!coupon) return res.status(404).json({ message: 'Coupon not found' });
@@ -62,7 +62,7 @@ exports.updateCoupon = async (req, res) => {
 };
 
 // Delete coupon
-exports.deleteCoupon = async (req, res) => {
+export const deleteCoupon = async (req, res) => {
   try {
     const coupon = await Coupon.findByIdAndDelete(req.params.id);
     if (!coupon) return res.status(404).json({ message: 'Coupon not found' });

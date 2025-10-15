@@ -1,21 +1,21 @@
 import express from 'express';
 import {
-  createDiscount,
-  getAllDiscounts,
-  updateDiscount,
-  deleteDiscount,
-  applyDiscount,
-} from '../controllers/discountController.js';
+  createCoupon,
+  getAllCoupons,
+  validateCoupon,
+  updateCoupon,
+  deleteCoupon,
+} from '../controllers/couponController.js';
 
 const router = express.Router();
 
-// Admin routes
-router.post('/discount', createDiscount);
-router.get('/discounts', getAllDiscounts);
-router.put('/discount/:id', updateDiscount);
-router.delete('/discount/:id', deleteDiscount);
+// ✅ Admin routes
+router.post('/', createCoupon);
+router.get('/', getAllCoupons);
+router.put('/:id', updateCoupon);
+router.delete('/:id', deleteCoupon);
 
-// Public route — apply discount
-router.post('/apply', applyDiscount);
+// ✅ Public route — validate coupon during checkout
+router.post('/validate', validateCoupon);
 
 export default router;

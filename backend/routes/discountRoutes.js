@@ -1,14 +1,21 @@
-const express = require('express');
+import express from 'express';
+import {
+  createDiscount,
+  getAllDiscounts,
+  getActiveDiscounts,
+  updateDiscount,
+  deleteDiscount,
+} from '../controllers/discountController.js';
+
 const router = express.Router();
-const discountController = require('../controllers/discountController');
 
 // Admin routes
-router.post('/', discountController.createDiscount);
-router.get('/', discountController.getAllDiscounts);
-router.put('/:id', discountController.updateDiscount);
-router.delete('/:id', discountController.deleteDiscount);
+router.post('/', createDiscount);
+router.get('/', getAllDiscounts);
+router.put('/:id', updateDiscount);
+router.delete('/:id', deleteDiscount);
 
 // Public route — fetch active discounts
-router.get('/active/list', discountController.getActiveDiscounts);
+router.get('/active/list', getActiveDiscounts);
 
-module.exports = router;
+export default router;
