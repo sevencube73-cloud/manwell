@@ -10,10 +10,10 @@ import {
 const router = express.Router();
 
 // Admin routes
-router.post('/', createDiscount);
-router.get('/', getAllDiscounts);
-router.put('/:id', updateDiscount);
-router.delete('/:id', deleteDiscount);
+router.post('/discount', createDiscount);        // matches POST /api/discounts/discount
+router.get('/discounts', getAllDiscounts);       // matches GET /api/discounts/discounts
+router.put('/discount/:id', updateDiscount);
+router.delete('/discount/:id', deleteDiscount);
 
 // Public route — fetch active discounts
 router.get('/active/list', getActiveDiscounts);
