@@ -1,5 +1,5 @@
 import Discount from '../models/Discount.js';
-import Product from '../models/Product.js';
+import Product from '../models/product.js';
 
 // Create new discount (admin)
 export const createDiscount = async (req, res) => {
