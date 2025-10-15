@@ -22,7 +22,7 @@ import pesapalRoutes from "./routes/pesapalRoutes.js";
 import mpesaRoutes from "./routes/mpesaRoutes.js";
 import contactRoutes from "./routes/contactRoutes.js";
 import discountRoutes from "./routes/discountRoutes.js";
-import couponRoutes from "./routes/couponRoutes.js";
+import couponRoutes from "./routes/couponRoutes.js"
 
 // ✅ Connect to DB
 connectDB();

@@ -1,14 +1,21 @@
-const express = require('express');
+import express from 'express';
+import {
+  createDiscount,
+  getAllDiscounts,
+  updateDiscount,
+  deleteDiscount,
+  applyDiscount,
+} from '../controllers/discountController.js';
+
 const router = express.Router();
-const couponController = require('../controllers/couponController');
 
 // Admin routes
-router.post('/', couponController.createCoupon);
-router.get('/', couponController.getAllCoupons);
-router.put('/:id', couponController.updateCoupon);
-router.delete('/:id', couponController.deleteCoupon);
+router.post('/discount', createDiscount);
+router.get('/discounts', getAllDiscounts);
+router.put('/discount/:id', updateDiscount);
+router.delete('/discount/:id', deleteDiscount);
 
-// Public route — validate coupon during checkout
-router.post('/validate', couponController.validateCoupon);
+// Public route — apply discount
+router.post('/apply', applyDiscount);
 
-module.exports = router;
+export default router;
