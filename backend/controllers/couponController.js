@@ -1,6 +1,6 @@
 import Coupon from '../models/Coupon.js';
 
-// Create a new coupon (admin)
+// ✅ Create a new coupon (admin)
 export const createCoupon = async (req, res) => {
   try {
     const coupon = new Coupon(req.body);
@@ -11,7 +11,7 @@ export const createCoupon = async (req, res) => {
   }
 };
 
-// Get all coupons (admin)
+// ✅ Get all coupons (admin)
 export const getAllCoupons = async (req, res) => {
   try {
     const coupons = await Coupon.find();
@@ -21,23 +21,24 @@ export const getAllCoupons = async (req, res) => {
   }
 };
 
-// Validate a coupon (user side)
+// ✅ Validate a coupon (user-side) via GET /validate/:code?orderValue=...
 export const validateCoupon = async (req, res) => {
   try {
-    const { code, orderValue } = req.body;
-    const coupon = await Coupon.findOne({ code: code.toUpperCase(), active: true });
+    const { code } = req.params;
+    const orderValue = parseFloat(req.query.orderValue) || 0;
 
-    if (!coupon) return res.status(404).json({ message: 'Invalid or inactive coupon' });
+    const coupon = await Coupon.findOne({ code: code.toUpperCase(), active: true });
+    if (!coupon) return res.status(404).json({ valid: false, message: 'Invalid or inactive coupon' });
 
     const now = new Date();
     if (coupon.expiresAt && coupon.expiresAt < now)
-      return res.status(400).json({ message: 'Coupon has expired' });
+      return res.status(400).json({ valid: false, message: 'Coupon has expired' });
 
     if (orderValue < coupon.minOrderValue)
-      return res.status(400).json({ message: `Minimum order value is ${coupon.minOrderValue}` });
+      return res.status(400).json({ valid: false, message: `Minimum order value is KES ${coupon.minOrderValue}` });
 
     if (coupon.maxUses > 0 && coupon.usedCount >= coupon.maxUses)
-      return res.status(400).json({ message: 'Coupon usage limit reached' });
+      return res.status(400).json({ valid: false, message: 'Coupon usage limit reached' });
 
     res.json({
       valid: true,
@@ -46,11 +47,11 @@ export const validateCoupon = async (req, res) => {
       message: 'Coupon applied successfully',
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ valid: false, message: err.message });
   }
 };
 
-// Update coupon (admin)
+// ✅ Update coupon (admin)
 export const updateCoupon = async (req, res) => {
   try {
     const coupon = await Coupon.findByIdAndUpdate(req.params.id, req.body, { new: true });
@@ -61,7 +62,7 @@ export const updateCoupon = async (req, res) => {
   }
 };
 
-// Delete coupon
+// ✅ Delete coupon (admin)
 export const deleteCoupon = async (req, res) => {
   try {
     const coupon = await Coupon.findByIdAndDelete(req.params.id);

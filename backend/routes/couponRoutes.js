@@ -15,7 +15,7 @@ router.get('/', getAllCoupons);
 router.put('/:id', updateCoupon);
 router.delete('/:id', deleteCoupon);
 
-// ✅ Public route — validate coupon during checkout
-router.post('/validate', validateCoupon);
+// ✅ Public route — validate coupon during checkout (GET)
+router.get('/validate/:code', validateCoupon);
 
 export default router;
