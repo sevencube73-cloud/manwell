@@ -1,43 +1,89 @@
 import Order from '../models/Order.js';
 import Product from '../models/product.js';
+import Coupon from '../models/Coupon.js';
 
 // Create a new order
 export const createOrder = async (req, res) => {
-  const { orderItems, shippingAddress, paymentMethod, totalPrice } = req.body;
-  if (!orderItems || orderItems.length === 0)
-    return res.status(400).json({ message: 'No order items' });
-
   try {
-    const processedOrderItems = [];
+    const {
+      orderItems,
+      shippingAddress,
+      paymentMethod,
+      totalPrice,
+      discount = { type: null, value: 0 },
+      couponCode = null,
+      finalAmount,
+      phone,
+    } = req.body;
+
+    if (!orderItems || orderItems.length === 0)
+      return res.status(400).json({ message: 'No order items provided' });
+
+    // Process each order item: check stock & reduce
+    const processedItems = [];
     for (const item of orderItems) {
       const product = await Product.findById(item.product);
-      if (!product) return res.status(404).json({ message: `Product not found: ${item.product}` });
-      const qtyToBuy = Math.min(item.qty, product.stock);
-      product.stock -= qtyToBuy;
+      if (!product)
+        return res.status(404).json({ message: `Product not found: ${item.product}` });
+
+      if (item.qty > product.stock)
+        return res
+          .status(400)
+          .json({ message: `Not enough stock for ${product.name}` });
+
+      product.stock -= item.qty;
       await product.save();
-      processedOrderItems.push({ product: product._id, qty: qtyToBuy, price: product.price });
+
+      processedItems.push({
+        product: product._id,
+        qty: item.qty,
+        price: product.price,
+      });
+    }
+
+    // Optional: validate coupon if provided
+    if (couponCode) {
+      const coupon = await Coupon.findOne({ code: couponCode.toUpperCase(), active: true });
+      if (!coupon)
+        return res.status(400).json({ message: 'Invalid or inactive coupon' });
+
+      const now = new Date();
+      if (coupon.expiresAt && coupon.expiresAt < now)
+        return res.status(400).json({ message: 'Coupon has expired' });
+
+      if (coupon.maxUses > 0 && coupon.usedCount >= coupon.maxUses)
+        return res.status(400).json({ message: 'Coupon usage limit reached' });
     }
 
     const order = new Order({
       user: req.user._id,
-      orderItems: processedOrderItems,
+      orderItems: processedItems,
       shippingAddress,
       paymentMethod,
       totalPrice,
-      status: paymentMethod === 'Pay on Delivery' ? 'Pending' : 'Pending',
+      discountType: discount?.type || null,
+      discountValue: discount?.value || 0,
+      couponCode: couponCode || null,
+      finalAmount,
     });
 
     await order.save();
-    res.status(201).json(order);
+
+    res.status(201).json({ message: 'Order created successfully', order });
   } catch (error) {
-    res.status(500).json({ message: 'Error creating order', error: error.message });
+    console.error('Create order error:', error);
+    res.status(500).json({ message: 'Server error creating order', error: error.message });
   }
 };
 
 // Get all orders (admin)
 export const getAllOrders = async (req, res) => {
   try {
-    const orders = await Order.find().populate('user', 'name email phoneNumber').sort({ createdAt: -1 });
+    const orders = await Order.find()
+      .populate('user', 'name email phoneNumber')
+      .populate('orderItems.product', 'name price')
+      .sort({ createdAt: -1 });
+
     res.json(orders);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching orders', error: error.message });
@@ -52,21 +98,23 @@ export const getOrderById = async (req, res) => {
       .populate('orderItems.product', 'name price');
 
     if (!order) return res.status(404).json({ message: 'Order not found' });
+
     res.json(order);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching order', error: error.message });
   }
 };
 
-// Get orders of the logged-in user
+// Get orders of logged-in user
 export const getMyOrders = async (req, res) => {
   try {
     const orders = await Order.find({ user: req.user._id })
       .populate('orderItems.product', 'name price')
       .sort({ createdAt: -1 });
+
     res.json(orders);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching orders', error: error.message });
+    res.status(500).json({ message: 'Error fetching your orders', error: error.message });
   }
 };
 
@@ -78,7 +126,8 @@ export const updateOrderStatus = async (req, res) => {
 
     order.status = req.body.status || order.status;
     await order.save();
-    res.json(order);
+
+    res.json({ message: 'Order status updated', order });
   } catch (error) {
     res.status(500).json({ message: 'Error updating order', error: error.message });
   }
