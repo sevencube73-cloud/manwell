@@ -24,22 +24,30 @@ const orderSchema = new mongoose.Schema(
     shippingAddress: shippingSchema,
     paymentMethod: { type: String, required: true },
     totalPrice: { type: Number, required: true },
-    status: { 
-      type: String, 
-      default: 'Pending', 
-      enum: ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'] 
+
+    // ✅ Discount & Coupon Support
+    discountType: { type: String, enum: ['percent', 'fixed'], default: null },
+    discountValue: { type: Number, default: 0 },
+    couponCode: { type: String, default: null },
+    finalAmount: { type: Number, required: true },
+
+    // ✅ Status & Delivery
+    status: {
+      type: String,
+      default: 'Pending',
+      enum: ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'],
     },
     deliveryAgent: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-    deliveryStatus: { 
-      type: String, 
-      enum: ['Assigned', 'In Transit', 'Delivered'], 
-      default: 'Assigned' 
+    deliveryStatus: {
+      type: String,
+      enum: ['Assigned', 'In Transit', 'Delivered'],
+      default: 'Assigned',
     },
   },
   { timestamps: true }
 );
 
-// Auto-generate orderId like M001, M002, etc.
+// ✅ Auto-generate orderId like M001, M002, etc.
 orderSchema.pre('save', async function (next) {
   if (!this.orderId) {
     const lastOrder = await mongoose.models.Order.findOne({}, {}, { sort: { createdAt: -1 } });

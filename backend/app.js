@@ -9,6 +9,7 @@ import morgan from "morgan";
 import connectDB from "./config/db.js";
 import { notFound, errorHandler } from "./middleware/errorMiddleware.js";
 
+// ✅ Import all routes
 import authRoutes from "./routes/authRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
@@ -20,18 +21,20 @@ import paymentRoutes from "./routes/paymentRoutes.js";
 import pesapalRoutes from "./routes/pesapalRoutes.js";
 import mpesaRoutes from "./routes/mpesaRoutes.js";
 import contactRoutes from "./routes/contactRoutes.js";
+import discountRoutes from "./routes/discountRoutes.js";
+import couponRoutes from "./routes/couponRoutes.js";
 
 // ✅ Connect to DB
 connectDB();
 
 const app = express();
 
-// ✅ FIX CORS — Must come before all routes
+// ✅ CORS configuration
 app.use(
   cors({
     origin: [
-      "https://manwellfrontend-6scg.onrender.com", // Your deployed frontend
-      "http://localhost:3000", // For local testing
+      "https://manwellfrontend-6scg.onrender.com", // deployed frontend
+      "http://localhost:3000", // local dev
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -45,7 +48,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan("dev"));
 
-// ✅ Routes
+// ✅ API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
@@ -58,12 +61,16 @@ app.use("/api/pesapal", pesapalRoutes);
 app.use("/api/mpesa", mpesaRoutes);
 app.use("/api/contact", contactRoutes);
 
-// ✅ Root test route
+// ✅ Newly added discount and coupon modules
+app.use("/api/discounts", discountRoutes);
+app.use("/api/coupons", couponRoutes);
+
+// ✅ Root route
 app.get("/", (req, res) => {
   res.send("✅ Manwell Backend API is running...");
 });
 
-// ✅ Error handlers
+// ✅ Error handling
 app.use(notFound);
 app.use(errorHandler);
 
