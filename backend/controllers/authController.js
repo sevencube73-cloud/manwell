@@ -81,7 +81,7 @@ export const requestPasswordReset = async (req, res) => {
     user.resetTokenExpire = Date.now() + 30 * 60 * 1000; // 30 mins expiry
     await user.save();
 
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+    const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
     const html = `
       <h2>Password Reset Request</h2>
       <p>Hello ${user.name || "User"},</p>
