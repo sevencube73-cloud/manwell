@@ -66,7 +66,7 @@ export const loginUser = async (req, res) => {
   }
 };
 
-// ✅ Request password reset (Resend email)
+// ✅ Request password reset (modern email template)
 export const requestPasswordReset = async (req, res) => {
   const { email } = req.body;
 
@@ -82,12 +82,66 @@ export const requestPasswordReset = async (req, res) => {
     await user.save();
 
     const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
+
+    // ✅ Modern Company-style HTML email
     const html = `
-      <h2>Password Reset Request</h2>
-      <p>Hello ${user.name || "User"},</p>
-      <p>You requested to reset your password. Click below to reset it:</p>
-      <a href="${resetUrl}" style="background:#007bff;color:#fff;padding:10px 20px;border-radius:5px;text-decoration:none;">Reset Password</a>
-      <p>If you didn’t request this, you can safely ignore this email.</p>
+      <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f7f8fa; padding: 40px 0;">
+        <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+          
+          <!-- Header -->
+          <div style="background: linear-gradient(135deg, #007bff, #00c6ff); padding: 25px; text-align: center; color: #fff;">
+            <h1 style="margin: 0; font-size: 22px;">🔐 Password Reset Request</h1>
+          </div>
+
+          <!-- Body -->
+          <div style="padding: 30px; color: #333;">
+            <p style="font-size: 16px;">Hello <b>${user.name || "User"}</b>,</p>
+            <p style="font-size: 15px; line-height: 1.6;">
+              We received a request to reset your password. Click the button below to set up a new password for your account.
+            </p>
+
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${resetUrl}" 
+                style="background: linear-gradient(135deg, #007bff, #00c6ff); color: #fff; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-size: 16px; font-weight: 600;">
+                Reset Password
+              </a>
+            </div>
+
+            <p style="font-size: 14px; color: #666; line-height: 1.6;">
+              If you didn’t request this password reset, you can safely ignore this email.
+              The link will expire in <b>30 minutes</b> for your security.
+            </p>
+
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+
+            <p style="font-size: 13px; color: #999;">
+              Need help? Contact our support team anytime at 
+              <a href="mailto:support@manwellstore.com" style="color: #007bff; text-decoration: none;">support@manwellstore.com</a>.
+            </p>
+          </div>
+
+          <!-- Footer -->
+          <div style="background: #f0f2f5; padding: 20px; text-align: center;">
+            <p style="font-size: 14px; color: #555; margin-bottom: 10px;">Follow us on</p>
+            <div style="margin-bottom: 10px;">
+              <a href="https://facebook.com" style="margin: 0 8px; text-decoration: none;">
+                <img src="https://cdn-icons-png.flaticon.com/512/733/733547.png" width="24" alt="Facebook" />
+              </a>
+              <a href="https://twitter.com" style="margin: 0 8px; text-decoration: none;">
+                <img src="https://cdn-icons-png.flaticon.com/512/733/733579.png" width="24" alt="Twitter" />
+              </a>
+              <a href="https://instagram.com" style="margin: 0 8px; text-decoration: none;">
+                <img src="https://cdn-icons-png.flaticon.com/512/2111/2111463.png" width="24" alt="Instagram" />
+              </a>
+              <a href="https://linkedin.com" style="margin: 0 8px; text-decoration: none;">
+                <img src="https://cdn-icons-png.flaticon.com/512/174/174857.png" width="24" alt="LinkedIn" />
+              </a>
+            </div>
+
+            <p style="font-size: 12px; color: #999;">© ${new Date().getFullYear()} Manwell Store. All rights reserved.</p>
+          </div>
+        </div>
+      </div>
     `;
 
     await sendEmail(user.email, "Password Reset Request", html);
