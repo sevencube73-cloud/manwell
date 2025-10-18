@@ -116,7 +116,7 @@ export const requestPasswordReset = async (req, res) => {
 
             <p style="font-size: 13px; color: #999;">
               Need help? Contact our support team anytime at 
-              <a href="mailto:manwellstore@gmail.com" style="color: #007bff; text-decoration: none;">support@manwellstore.com</a>.
+              <a href="mailto:manwellstore@gmail.com" style="color: #007bff; text-decoration: none;">manwellstore@gmail.com</a>.
             </p>
           </div>
 
