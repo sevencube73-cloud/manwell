@@ -35,6 +35,8 @@ app.use(
   cors({
     origin: [
       "https://manwellfrontend-6scg.onrender.com", // deployed frontend
+      "https://www.manwellstore.com", // production frontend domain
+      "https://manwellstore.com",
       "http://localhost:3000", // local dev
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
