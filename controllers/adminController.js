@@ -83,13 +83,13 @@ export const getDiscountedCarousel = async (req, res) => {
   }
 };
 
-// ✅ Set discounted carousel products (admin only, max 3)
+// ✅ Set discounted carousel products (admin only, unlimited)
 export const setDiscountedCarousel = async (req, res) => {
   try {
     const { productIds } = req.body;
     
-    if (!Array.isArray(productIds) || productIds.length > 3) {
-      return res.status(400).json({ message: 'Maximum 3 products allowed' });
+    if (!Array.isArray(productIds)) {
+      return res.status(400).json({ message: 'productIds must be an array' });
     }
 
     // Validate product IDs exist
