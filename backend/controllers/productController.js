@@ -77,7 +77,7 @@ export const updateProduct = async (req, res) => {
     // If new files uploaded, map and append to product.images
     if (req.files && req.files.length > 0) {
       const uploaded = req.files.map((f) => ({ url: f.path, public_id: f.filename || f.public_id }));
-      product.images = product.images.concat(uploaded).slice(0, 3); // keep max 3
+      product.images = product.images.concat(uploaded).slice(0, 5); // keep max 5
     }
 
     // Update other fields
