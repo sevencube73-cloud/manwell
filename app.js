@@ -24,6 +24,7 @@ import mpesaRoutes from "./routes/mpesaRoutes.js";
 import contactRoutes from "./routes/contactRoutes.js";
 import discountRoutes from "./routes/discountRoutes.js";
 import couponRoutes from "./routes/couponRoutes.js"
+import dealRoutes from "./routes/dealRoutes.js";
 
 // ✅ Connect to DB
 connectDB();
@@ -67,6 +68,7 @@ app.use("/api/contact", contactRoutes);
 // ✅ Newly added discount and coupon modules
 app.use("/api/discounts", discountRoutes);
 app.use("/api/coupons", couponRoutes);
+app.use("/api/deals", dealRoutes);
 
 // ✅ Root route
 app.get("/", (req, res) => {

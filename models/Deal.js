@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 const { Schema } = mongoose;
 
 const dealSchema = new Schema({
@@ -20,4 +20,4 @@ dealSchema.methods.isActive = function() {
   return this.active && now >= this.startDate && now <= this.endDate;
 };
 
-module.exports = mongoose.model('Deal', dealSchema);
+export default mongoose.model('Deal', dealSchema);
