@@ -221,3 +221,132 @@ export const makeUserAdmin = async (req, res) => {
     res.status(500).json({ message: 'Error promoting user to admin', error: error.message });
   }
 };
+
+// @desc Get all saved shipping addresses for user
+// @route GET /api/users/addresses
+// @access Protected
+export const getSavedAddresses = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json(user.shippingAddresses || []);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching addresses', error: error.message });
+  }
+};
+
+// @desc Add a new shipping address
+// @route POST /api/users/addresses
+// @access Protected
+export const addSavedAddress = async (req, res) => {
+  try {
+    const { fullName, phone, address, city, postalCode, country, isDefault } = req.body;
+
+    if (!fullName || !phone || !address || !city || !country) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // If this is the default, remove default from others
+    if (isDefault) {
+      user.shippingAddresses.forEach(addr => addr.isDefault = false);
+    }
+
+    user.shippingAddresses.push({
+      fullName,
+      phone,
+      address,
+      city,
+      postalCode,
+      country,
+      isDefault: isDefault || user.shippingAddresses.length === 0, // First address is default
+    });
+
+    await user.save();
+    res.status(201).json(user.shippingAddresses);
+  } catch (error) {
+    res.status(500).json({ message: 'Error adding address', error: error.message });
+  }
+};
+
+// @desc Update a saved shipping address
+// @route PUT /api/users/addresses/:addressId
+// @access Protected
+export const updateSavedAddress = async (req, res) => {
+  try {
+    const { addressId } = req.params;
+    const { fullName, phone, address, city, postalCode, country, isDefault } = req.body;
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const savedAddr = user.shippingAddresses.id(addressId);
+    if (!savedAddr) return res.status(404).json({ message: 'Address not found' });
+
+    // Update fields
+    if (fullName) savedAddr.fullName = fullName;
+    if (phone) savedAddr.phone = phone;
+    if (address) savedAddr.address = address;
+    if (city) savedAddr.city = city;
+    if (postalCode) savedAddr.postalCode = postalCode;
+    if (country) savedAddr.country = country;
+
+    // If this is being set as default, remove default from others
+    if (isDefault) {
+      user.shippingAddresses.forEach(addr => addr.isDefault = false);
+      savedAddr.isDefault = true;
+    }
+
+    await user.save();
+    res.json(user.shippingAddresses);
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating address', error: error.message });
+  }
+};
+
+// @desc Delete a saved shipping address
+// @route DELETE /api/users/addresses/:addressId
+// @access Protected
+export const deleteSavedAddress = async (req, res) => {
+  try {
+    const { addressId } = req.params;
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    user.shippingAddresses.id(addressId).deleteOne();
+    await user.save();
+
+    res.json(user.shippingAddresses);
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting address', error: error.message });
+  }
+};
+
+// @desc Set a saved address as default
+// @route PUT /api/users/addresses/:addressId/set-default
+// @access Protected
+export const setDefaultAddress = async (req, res) => {
+  try {
+    const { addressId } = req.params;
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // Remove default from all
+    user.shippingAddresses.forEach(addr => addr.isDefault = false);
+
+    // Set the selected one as default
+    const savedAddr = user.shippingAddresses.id(addressId);
+    if (!savedAddr) return res.status(404).json({ message: 'Address not found' });
+
+    savedAddr.isDefault = true;
+    await user.save();
+
+    res.json(user.shippingAddresses);
+  } catch (error) {
+    res.status(500).json({ message: 'Error setting default address', error: error.message });
+  }
+};

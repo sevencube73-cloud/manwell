@@ -11,6 +11,19 @@ const userSchema = new mongoose.Schema(
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
     isActive: { type: Boolean, default: true },
 
+    // 🔐 Saved Shipping Addresses
+    shippingAddresses: [{
+      _id: { type: mongoose.Schema.Types.ObjectId, auto: true },
+      fullName: { type: String },
+      phone: { type: String },
+      address: { type: String },
+      city: { type: String },
+      postalCode: { type: String },
+      country: { type: String },
+      isDefault: { type: Boolean, default: false },
+      createdAt: { type: Date, default: Date.now }
+    }],
+
     // 🔐 Password reset fields (for Resend integration)
     resetToken: { type: String },
     resetTokenExpire: { type: Date },

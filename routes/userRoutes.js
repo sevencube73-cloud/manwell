@@ -10,6 +10,11 @@ import {
   verifyCustomerByAdmin,
   activateCustomer,
   makeUserAdmin,
+  getSavedAddresses,
+  addSavedAddress,
+  updateSavedAddress,
+  deleteSavedAddress,
+  setDefaultAddress,
 } from '../controllers/userController.js';
 import { protect, admin } from '../middleware/authMiddleware.js';
 
@@ -22,6 +27,13 @@ router.post('/login', loginUser);
 // Protected routes
 router.get('/profile', protect, getUserProfile);
 router.put('/profile', protect, updateUserProfile);
+
+// Shipping Addresses (protected)
+router.get('/addresses', protect, getSavedAddresses);
+router.post('/addresses', protect, addSavedAddress);
+router.put('/addresses/:addressId', protect, updateSavedAddress);
+router.delete('/addresses/:addressId', protect, deleteSavedAddress);
+router.put('/addresses/:addressId/set-default', protect, setDefaultAddress);
 
 // Admin routes
 router.get('/customers', protect, admin, getCustomers);
