@@ -203,3 +203,21 @@ export const activateCustomer = async (req, res) => {
     res.status(500).json({ message: 'Error activating customer', error: error.message });
   }
 };
+
+// @desc Promote a user to admin (admin only)
+// @route PUT /api/users/:id/make-admin
+// @access Admin
+export const makeUserAdmin = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (user.role === 'admin') return res.status(400).json({ message: 'User is already an admin' });
+
+    user.role = 'admin';
+    await user.save();
+
+    res.json({ message: 'User promoted to admin successfully', user });
+  } catch (error) {
+    res.status(500).json({ message: 'Error promoting user to admin', error: error.message });
+  }
+};

@@ -9,6 +9,7 @@ import {
   deleteCustomer,
   verifyCustomerByAdmin,
   activateCustomer,
+  makeUserAdmin,
 } from '../controllers/userController.js';
 import { protect, admin } from '../middleware/authMiddleware.js';
 
@@ -28,5 +29,6 @@ router.put('/customers/:id/deactivate', protect, admin, deactivateCustomer);
 router.put('/customers/:id/activate', protect, admin, activateCustomer);
 router.put('/customers/:id/verify', protect, admin, verifyCustomerByAdmin);
 router.delete('/customers/:id', protect, admin, deleteCustomer);
+router.put('/:id/make-admin', protect, admin, makeUserAdmin);
 
 export default router;

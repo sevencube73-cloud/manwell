@@ -1,12 +1,10 @@
 import express from 'express';
 const router = express.Router();
 import Deal from '../models/Deal.js';
-
-// Placeholder admin middleware (use real auth middleware in production)
-const requireAdmin = (req, res, next) => { next(); };
+import { protect, admin } from '../middleware/authMiddleware.js';
 
 // Create a deal (admin only)
-router.post('/', requireAdmin, async (req, res) => {
+router.post('/', protect, admin, async (req, res) => {
   try {
     const { title, discountType, discountValue, startDate, endDate } = req.body;
     if (!title || !discountType || typeof discountValue === 'undefined' || !startDate || !endDate) {
@@ -63,7 +61,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Update a deal (admin only)
-router.put('/:id', requireAdmin, async (req, res) => {
+router.put('/:id', protect, admin, async (req, res) => {
   try {
     const { startDate, endDate } = req.body;
     if (startDate || endDate) {
@@ -83,7 +81,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
 });
 
 // Delete a deal (admin only)
-router.delete('/:id', requireAdmin, async (req, res) => {
+router.delete('/:id', protect, admin, async (req, res) => {
   try {
     const deal = await Deal.findByIdAndDelete(req.params.id);
     if (!deal) return res.status(404).json({ error: 'Deal not found' });
