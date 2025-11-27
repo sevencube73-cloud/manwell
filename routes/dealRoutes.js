@@ -27,13 +27,25 @@ router.post('/', requireAdmin, async (req, res) => {
   }
 });
 
-// List all active deals
+// List all deals (including inactive)
 router.get('/', async (req, res) => {
   try {
-    const deals = await Deal.find({ active: true });
+    const deals = await Deal.find({});
     res.json(deals);
   } catch (err) {
     console.error('Error listing deals:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /deals/active - only currently active deals (MUST come before /:id)
+router.get('/active', async (req, res) => {
+  try {
+    const deals = await Deal.find({ active: true });
+    const activeDeals = deals.filter(d => d.isActive());
+    res.json(activeDeals);
+  } catch (err) {
+    console.error('Error fetching active deals:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -82,16 +94,5 @@ router.delete('/:id', requireAdmin, async (req, res) => {
   }
 });
 
-// GET /deals/active - only currently active deals
-router.get('/active', async (req, res) => {
-  try {
-    const deals = await Deal.find({ active: true });
-    const activeDeals = deals.filter(d => d.isActive());
-    res.json(activeDeals);
-  } catch (err) {
-    console.error('Error fetching active deals:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
 
 export default router;
