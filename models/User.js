@@ -27,6 +27,18 @@ const userSchema = new mongoose.Schema(
     // 🔐 Password reset fields (for Resend integration)
     resetToken: { type: String },
     resetTokenExpire: { type: Date },
+
+    // 🔐 Email verification fields
+    // Default set to true so newly created users are considered verified by default.
+    // Change this carefully if you require email verification for new users.
+    isEmailVerified: { type: Boolean, default: true },
+    verificationToken: { type: String },
+    verificationTokenExpire: { type: Date },
+
+    // 🔐 Google OAuth fields
+    googleId: { type: String, sparse: true },
+    authProvider: { type: String, enum: ['local', 'google'], default: 'local' },
+    profilePicture: { type: String },
   },
   { timestamps: true }
 );

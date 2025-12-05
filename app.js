@@ -5,6 +5,8 @@ dotenv.config();
 import express from "express";
 import cors from "cors";
 import morgan from "morgan";
+import session from "express-session";
+import passport from "./config/passport.js";
 
 import connectDB from "./config/db.js";
 import { notFound, errorHandler } from "./middleware/errorMiddleware.js";
@@ -18,7 +20,6 @@ import userRoutes from "./routes/userRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import returnRoutes from "./routes/returns.js";
 import accountRoutes from "./routes/accountRoutes.js";
-import paymentRoutes from "./routes/paymentRoutes.js";
 import pesapalRoutes from "./routes/pesapalRoutes.js";
 import mpesaRoutes from "./routes/mpesaRoutes.js";
 import contactRoutes from "./routes/contactRoutes.js";
@@ -35,10 +36,12 @@ const app = express();
 app.use(
   cors({
     origin: [
-      "https://manwellfrontend-6scg.onrender.com", // deployed frontend
-      "https://www.manwellstore.com", // production frontend domain
+       // deployed frontend
       "https://manwellstore.com",
-      "http://localhost:3000", // local dev
+      "https://www.manwellstore.com",
+       // local dev
+      "http://localhost:3000",
+      "http://localhost:3001",
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -52,6 +55,24 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan("dev"));
 
+// ✅ Session Configuration for Passport
+app.use(
+  session({
+    secret: process.env.JWT_SECRET || "your_session_secret_key",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === "production", // HTTPS only in production
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    },
+  })
+);
+
+// ✅ Passport Initialization
+app.use(passport.initialize());
+app.use(passport.session());
+
 // ✅ API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
@@ -60,7 +81,6 @@ app.use("/api/users", userRoutes);
 app.use("/api/returns", returnRoutes);
 app.use("/api/account", accountRoutes);
 app.use("/api/admin", adminRoutes);
-app.use("/api/payment", paymentRoutes);
 app.use("/api/pesapal", pesapalRoutes);
 app.use("/api/mpesa", mpesaRoutes);
 app.use("/api/contact", contactRoutes);

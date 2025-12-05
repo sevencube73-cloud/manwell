@@ -37,12 +37,24 @@ const orderSchema = new mongoose.Schema(
       default: 'Pending',
       enum: ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'],
     },
+    paymentStatus: {
+      type: String,
+      default: 'Unpaid',
+      enum: ['Unpaid', 'Paid'],
+    },
     deliveryAgent: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     deliveryStatus: {
       type: String,
       enum: ['Assigned', 'In Transit', 'Delivered'],
       default: 'Assigned',
     },
+    reminders: [
+      {
+        message: { type: String },
+        sentAt: { type: Date, default: Date.now },
+        read: { type: Boolean, default: false },
+      },
+    ],
   },
   { timestamps: true }
 );
