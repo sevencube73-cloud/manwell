@@ -2,56 +2,67 @@ import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import User from "../models/User.js";
 
-passport.use(
-  new GoogleStrategy(
-    {
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      // Support an explicit GOOGLE_CALLBACK_URL, or fallback to SERVER_URL + route
-      callbackURL:
-        process.env.GOOGLE_CALLBACK_URL ||
-        `${process.env.SERVER_URL || 'http://localhost:5000'}/api/auth/google/callback`,
-    },
-    async (accessToken, refreshToken, profile, done) => {
-      try {
-        // Check if user exists with this Google ID
-        let user = await User.findOne({ googleId: profile.id });
+// Register Google OAuth strategy only when credentials are provided.
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  passport.use(
+    new GoogleStrategy(
+      {
+        clientID: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        // Support an explicit GOOGLE_CALLBACK_URL, or fallback to SERVER_URL + route
+        callbackURL:
+          process.env.GOOGLE_CALLBACK_URL ||
+          `${process.env.SERVER_URL || 'http://localhost:5000'}/api/auth/google/callback`,
+      },
+      async (accessToken, refreshToken, profile, done) => {
+        try {
+          // Check if user exists with this Google ID
+          let user = await User.findOne({ googleId: profile.id });
 
-        if (user) {
-          return done(null, user);
-        }
-
-        // Check if user exists with this email
-        user = await User.findOne({ email: profile.emails[0].value });
-
-        if (user) {
-          // Link Google account to existing user
-          user.googleId = profile.id;
-          user.authProvider = "both";
-          if (!user.profilePicture && profile.photos[0]) {
-            user.profilePicture = profile.photos[0].value;
+          if (user) {
+            return done(null, user);
           }
-          await user.save();
+
+          // Check if user exists with this email
+          user = await User.findOne({ email: profile.emails[0].value });
+
+          if (user) {
+            // Link Google account to existing user
+            user.googleId = profile.id;
+            user.authProvider = 'both';
+            if (!user.profilePicture && profile.photos[0]) {
+              user.profilePicture = profile.photos[0].value;
+            }
+            await user.save();
+            return done(null, user);
+          }
+
+          // Create new user
+          user = await User.create({
+            googleId: profile.id,
+            name: profile.displayName,
+            email: profile.emails[0].value,
+            authProvider: 'google',
+            profilePicture: profile.photos[0]?.value || null,
+            isEmailVerified: true, // Google accounts are pre-verified
+          });
+
           return done(null, user);
+        } catch (error) {
+          return done(error, null);
         }
-
-        // Create new user
-        user = await User.create({
-          googleId: profile.id,
-          name: profile.displayName,
-          email: profile.emails[0].value,
-          authProvider: "google",
-          profilePicture: profile.photos[0]?.value || null,
-          isEmailVerified: true, // Google accounts are pre-verified
-        });
-
-        return done(null, user);
-      } catch (error) {
-        return done(error, null);
       }
-    }
-  )
-);
+    )
+  );
+} else {
+  // Don't throw on import if env vars are not configured.
+  // This keeps the app running (useful for local dev or when OAuth is optional).
+  // Log a clear warning so deploy-time problems are easier to diagnose.
+  // eslint-disable-next-line no-console
+  console.warn(
+    'Google OAuth NOT configured: set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to enable Google sign-in.'
+  );
+}
 
 // Serialize user for session
 passport.serializeUser((user, done) => {

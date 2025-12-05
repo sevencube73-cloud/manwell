@@ -122,7 +122,7 @@ export const initiatePesapalPayment = async (req, res) => {
             id: merchantRef,
             currency: 'KES',
             amount: formattedAmount,
-            description: 'muzafey order payments',
+            description: 'manwell order payments',
             callback_url: (process.env.PESAPAL_CALLBACK_URL || '') + `?orderId=${merchantRef}`,
             notification_id: ipn_id,
             billing_address: {
@@ -265,7 +265,7 @@ export const handlePesapalCallback = async (req, res) => {
             }
             // redirect including the DB _id when possible
             const redirectId = order && order._id ? order._id : OrderMerchantReference;
-            return res.redirect(`https://muzafey.online/order-confirmation?orderId=${redirectId}`);
+            return res.redirect(`https://manwellstore.com/order-confirmation?orderId=${redirectId}`);
         }
 
         // failed or other non-success statuses: remove the pending order so it doesn't go through
@@ -283,7 +283,7 @@ export const handlePesapalCallback = async (req, res) => {
         } catch (delErr) {
             console.error('Error deleting order after failed Pesapal payment:', delErr.message);
         }
-        return res.redirect(`https://muzafey.online/payment-failed?orderId=${OrderMerchantReference}`);
+        return res.redirect(`https://manwellstore.com/payment-failed?orderId=${OrderMerchantReference}`);
 
     } catch (error) {
         console.error("❌ Pesapal Callback Error:", error.response?.data || error.message);

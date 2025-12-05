@@ -157,7 +157,7 @@ export const sendPaymentReminder = async (req, res) => {
       return res.status(400).json({ message: 'Order is already paid' });
     }
 
-    const frontend = process.env.FRONTEND_URL || 'https://muzafey.online';
+    const frontend = process.env.FRONTEND_URL || 'https://manwellstore.com';
     const payLink = `${frontend}/pay?orderId=${order._id}`;
 
     const subject = `Payment reminder for order ${order.orderId || order._id}`;
