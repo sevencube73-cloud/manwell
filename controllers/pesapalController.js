@@ -18,7 +18,16 @@ if (PESAPAL_BASE.includes('pay.pesapal.com') && !PESAPAL_BASE.includes('/v3')) {
 console.log('PESAPAL_BASE:', PESAPAL_BASE);
 console.log('PESAPAL_CALLBACK_URL:', process.env.PESAPAL_CALLBACK_URL);
 
+// Feature flag: disable Pesapal integration when not desired
+const PESAPAL_ENABLED = String(process.env.PESAPAL_ENABLED || 'true').toLowerCase() === 'true';
+if (!PESAPAL_ENABLED) {
+    console.log('Pesapal integration is DISABLED via PESAPAL_ENABLED env flag');
+}
+
 const getPesapalToken = async () => {
+    if (!PESAPAL_ENABLED) {
+        throw new Error('Pesapal integration is disabled');
+    }
     const consumerKey = process.env.PESAPAL_CONSUMER_KEY;
     const consumerSecret = process.env.PESAPAL_CONSUMER_SECRET;
 
@@ -52,6 +61,9 @@ const getPesapalToken = async () => {
 };
 
 export const initiatePesapalPayment = async (req, res) => {
+    if (!PESAPAL_ENABLED) {
+        return res.status(404).json({ message: 'Pesapal payment method is currently disabled' });
+    }
     try {
                 const { amount, email, phone, orderId } = req.body;
                 // Validate order exists and isn't already paid. Accept either DB _id or human-friendly orderId.
@@ -193,6 +205,11 @@ export const initiatePesapalPayment = async (req, res) => {
 };
 
 export const handlePesapalCallback = async (req, res) => {
+    if (!PESAPAL_ENABLED) {
+        // If disabled, still acknowledge the callback but redirect to failed page
+        console.warn('Received Pesapal callback while integration disabled');
+        return res.redirect('/payment-failed');
+    }
     console.log("📩 Pesapal Callback Received:", req.query);
     const { OrderMerchantReference, OrderTrackingId } = req.query;
 
@@ -292,6 +309,9 @@ export const handlePesapalCallback = async (req, res) => {
 };
 
 export const getTransactionStatus = async (req, res) => {
+    if (!PESAPAL_ENABLED) {
+        return res.status(404).json({ message: 'Pesapal payment method is currently disabled' });
+    }
     try {
         const { orderTrackingId } = req.params;
         const token = await getPesapalToken();
