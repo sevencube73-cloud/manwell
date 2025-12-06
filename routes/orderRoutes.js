@@ -10,6 +10,9 @@ import {
   updatePaymentStatus,
   getReminderMessages,
   markReminderAsRead,
+  getOrderTrack,
+  adminUpdateOrderTrack,
+  adminGetOrderPrint,
 } from '../controllers/orderController.js';
 import { protect, admin } from '../middleware/authMiddleware.js';
 
@@ -31,8 +34,8 @@ router.delete('/:id', protect, admin, deleteOrder);
 
 // Generic routes - last
 router.get('/', protect, admin, getAllOrders);
-router.get('/:id', protect, getOrderById);
-// Order tracking - owner or admin
+// Order tracking - owner or admin (specific before generic)
 router.get('/:id/track', protect, getOrderTrack);
+router.get('/:id', protect, getOrderById);
 
 export default router;
