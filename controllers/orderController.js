@@ -169,18 +169,24 @@ export const getOrderTrack = async (req, res) => {
 export const adminUpdateOrderTrack = async (req, res) => {
   try {
     const { status, note } = req.body;
-    const order = await Order.findById(req.params.id);
+    const orderId = req.params.id;
+    const order = await Order.findById(orderId);
     if (!order) return res.status(404).json({ message: 'Order not found' });
 
-    // Append to history
-    order.statusHistory = order.statusHistory || [];
-    order.statusHistory.push({ status, note: note || '', updatedBy: req.user?._id, date: new Date() });
+    // Validate status value against schema enum if provided
+    const allowedStatuses = ['Pending', 'Processing', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled'];
+    if (status && !allowedStatuses.includes(status)) {
+      return res.status(400).json({ message: `Invalid status value. Allowed: ${allowedStatuses.join(', ')}` });
+    }
 
-    // Optionally update top-level status if provided
-    if (status) order.status = status;
+    const entry = { status: status || order.status, note: note || '', updatedBy: req.user?._id, date: new Date() };
 
-    await order.save();
-    res.json({ message: 'Order tracking updated', status: order.status, history: order.statusHistory });
+    // Use atomic update to push history and optionally set top-level status to avoid validation timing issues
+    const update = { $push: { statusHistory: entry } };
+    if (status) update.$set = { status };
+
+    const updated = await Order.findByIdAndUpdate(orderId, update, { new: true });
+    return res.json({ message: 'Order tracking updated', status: updated.status, history: updated.statusHistory });
   } catch (error) {
     console.error('Error updating order tracking:', error.message || error);
     res.status(500).json({ message: 'Error updating order tracking', error: error.message });
