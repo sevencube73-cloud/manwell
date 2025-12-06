@@ -25,10 +25,14 @@ router.put('/reminders/mark-read', protect, markReminderAsRead);
 router.post('/:id/send-payment-reminder', protect, admin, sendPaymentReminder);
 router.put('/:id/payment-status', protect, admin, updatePaymentStatus);
 router.put('/:id/status', protect, admin, updateOrderStatus);
+router.put('/:id/track', protect, admin, adminUpdateOrderTrack);
+router.get('/:id/print', protect, admin, adminGetOrderPrint);
 router.delete('/:id', protect, admin, deleteOrder);
 
 // Generic routes - last
 router.get('/', protect, admin, getAllOrders);
 router.get('/:id', protect, getOrderById);
+// Order tracking - owner or admin
+router.get('/:id/track', protect, getOrderTrack);
 
 export default router;

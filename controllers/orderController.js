@@ -147,6 +147,60 @@ export const updateOrderStatus = async (req, res) => {
   }
 };
 
+// Get order tracking history (owner or admin)
+export const getOrderTrack = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id).populate('statusHistory.updatedBy', 'name email');
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    // Allow admins or the order owner to view
+    if (req.user && req.user.role === 'admin') return res.json({ status: order.status, history: order.statusHistory });
+    if (req.user && order.user && order.user.toString() === req.user._id.toString()) {
+      return res.json({ status: order.status, history: order.statusHistory });
+    }
+    return res.status(403).json({ message: 'Not authorized to view this order tracking' });
+  } catch (error) {
+    console.error('Error fetching order tracking:', error.message || error);
+    res.status(500).json({ message: 'Error fetching order tracking', error: error.message });
+  }
+};
+
+// Admin: append a status update to order tracking
+export const adminUpdateOrderTrack = async (req, res) => {
+  try {
+    const { status, note } = req.body;
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    // Append to history
+    order.statusHistory = order.statusHistory || [];
+    order.statusHistory.push({ status, note: note || '', updatedBy: req.user?._id, date: new Date() });
+
+    // Optionally update top-level status if provided
+    if (status) order.status = status;
+
+    await order.save();
+    res.json({ message: 'Order tracking updated', status: order.status, history: order.statusHistory });
+  } catch (error) {
+    console.error('Error updating order tracking:', error.message || error);
+    res.status(500).json({ message: 'Error updating order tracking', error: error.message });
+  }
+};
+
+// Admin: return printable order details (JSON) for printing on frontend
+export const adminGetOrderPrint = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id)
+      .populate('user', 'name email phone')
+      .populate('orderItems.product', 'name price');
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    res.json({ order });
+  } catch (error) {
+    console.error('Error getting printable order:', error.message || error);
+    res.status(500).json({ message: 'Error preparing printable order', error: error.message });
+  }
+};
+
 // Admin: send payment reminder to customer for unpaid orders
 export const sendPaymentReminder = async (req, res) => {
   try {

@@ -48,6 +48,15 @@ const orderSchema = new mongoose.Schema(
       enum: ['Assigned', 'In Transit', 'Delivered'],
       default: 'Assigned',
     },
+    // History of status updates for tracking (admin or automated events)
+    statusHistory: [
+      {
+        status: { type: String },
+        note: { type: String },
+        updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        date: { type: Date, default: Date.now },
+      },
+    ],
     reminders: [
       {
         message: { type: String },
