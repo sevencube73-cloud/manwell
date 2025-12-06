@@ -17,6 +17,9 @@ export const createOrder = async (req, res) => {
       couponCode = null,
       finalAmount,
       phone,
+      shippingFee = 0,
+      shippingCategory = null,
+      deliveryType = 'door',
     } = req.body;
 
     if (!orderItems || orderItems.length === 0)
@@ -68,6 +71,9 @@ export const createOrder = async (req, res) => {
       shippingAddress,
       paymentMethod,
       totalPrice,
+      shippingFee,
+      shippingCategory,
+      deliveryType,
       discountType: discount?.type || null,
       discountValue: discount?.value || 0,
       couponCode: couponCode || null,

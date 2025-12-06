@@ -31,6 +31,11 @@ const orderSchema = new mongoose.Schema(
     couponCode: { type: String, default: null },
     finalAmount: { type: Number, required: true },
 
+    // Shipping selection persisted with the order
+    shippingFee: { type: Number, default: 0 },
+    shippingCategory: { type: mongoose.Schema.Types.ObjectId, ref: 'ShippingFee', default: null },
+    deliveryType: { type: String, enum: ['door', 'point'], default: 'door' },
+
     // ✅ Status & Delivery
     status: {
       type: String,

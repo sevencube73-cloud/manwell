@@ -1,21 +1,22 @@
 import ShippingFee from '../models/ShippingFee.js';
 
-// Get current shipping fee
+// Public: get all shipping fee categories
 export const getShippingFee = async (req, res) => {
   try {
-    let shippingFee = await ShippingFee.findOne();
-    if (!shippingFee) {
-      // Create default if none exists
-      shippingFee = new ShippingFee({ amount: 0, description: 'Standard Shipping Fee' });
-      await shippingFee.save();
+    const fees = await ShippingFee.find();
+    // If none exist, create a default entry for backward compatibility
+    if (!fees || fees.length === 0) {
+      const defaultFee = new ShippingFee({ category: 'Default', deliveryPointPrice: 0, doorDeliveryPrice: 0, description: 'Default shipping rates' });
+      await defaultFee.save();
+      return res.json([defaultFee]);
     }
-    res.json(shippingFee);
+    res.json(fees);
   } catch (err) {
-    res.status(500).json({ message: 'Failed to get shipping fee', error: err.message });
+    res.status(500).json({ message: 'Failed to get shipping fees', error: err.message });
   }
 };
 
-// Get all shipping fees (admin)
+// Get all shipping fees (admin - same as public but kept for route separation)
 export const getAdminShippingFees = async (req, res) => {
   try {
     const fees = await ShippingFee.find();
@@ -25,28 +26,19 @@ export const getAdminShippingFees = async (req, res) => {
   }
 };
 
-// Create or update shipping fee (admin)
+// Create shipping fee category (admin)
 export const createShippingFee = async (req, res) => {
   try {
-    const { amount, description } = req.body;
-    
-    if (amount === undefined || amount === null) {
-      return res.status(400).json({ message: 'Amount is required' });
-    }
+    const { category, deliveryPointPrice, doorDeliveryPrice, description } = req.body;
 
-    // Check if fee exists; if not create it
-    let shippingFee = await ShippingFee.findOne();
-    if (!shippingFee) {
-      shippingFee = new ShippingFee({ amount, description: description || 'Standard Shipping Fee' });
-    } else {
-      shippingFee.amount = amount;
-      if (description) shippingFee.description = description;
-    }
+    if (!category) return res.status(400).json({ message: 'Category is required' });
+    if (deliveryPointPrice === undefined || doorDeliveryPrice === undefined) return res.status(400).json({ message: 'Both prices are required' });
 
-    await shippingFee.save();
-    res.json(shippingFee);
+    const fee = new ShippingFee({ category, deliveryPointPrice, doorDeliveryPrice, description: description || '' });
+    await fee.save();
+    res.json(fee);
   } catch (err) {
-    res.status(500).json({ message: 'Failed to create/update shipping fee', error: err.message });
+    res.status(500).json({ message: 'Failed to create shipping fee', error: err.message });
   }
 };
 
@@ -54,18 +46,15 @@ export const createShippingFee = async (req, res) => {
 export const updateShippingFee = async (req, res) => {
   try {
     const { id } = req.params;
-    const { amount, description } = req.body;
+    const { category, deliveryPointPrice, doorDeliveryPrice, description } = req.body;
 
     const shippingFee = await ShippingFee.findByIdAndUpdate(
       id,
-      { amount, description },
+      { category, deliveryPointPrice, doorDeliveryPrice, description },
       { new: true }
     );
 
-    if (!shippingFee) {
-      return res.status(404).json({ message: 'Shipping fee not found' });
-    }
-
+    if (!shippingFee) return res.status(404).json({ message: 'Shipping fee not found' });
     res.json(shippingFee);
   } catch (err) {
     res.status(500).json({ message: 'Failed to update shipping fee', error: err.message });
@@ -76,12 +65,8 @@ export const updateShippingFee = async (req, res) => {
 export const deleteShippingFee = async (req, res) => {
   try {
     const { id } = req.params;
-
     const shippingFee = await ShippingFee.findByIdAndDelete(id);
-    if (!shippingFee) {
-      return res.status(404).json({ message: 'Shipping fee not found' });
-    }
-
+    if (!shippingFee) return res.status(404).json({ message: 'Shipping fee not found' });
     res.json({ message: 'Shipping fee deleted' });
   } catch (err) {
     res.status(500).json({ message: 'Failed to delete shipping fee', error: err.message });
