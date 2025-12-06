@@ -133,7 +133,7 @@ export const createOrder = async (req, res) => {
             </table>
 
             <p style="margin-top:12px">Subtotal: <strong>KES ${subtotal}</strong><br/>Shipping: <strong>KES ${shipping}</strong><br/>Tax/VAT: <strong>KES ${tax}</strong></p>
-            <p style="font-size:18px">Total Paid: <strong>KES ${total}</strong></p>
+            <p style="font-size:18px">Total Price: <strong>KES ${total}</strong></p>
 
             <p>Order Number: <strong>#${orderNumber}</strong><br/>Order Date: <strong>${new Date(order.createdAt).toLocaleString()}</strong></p>
 
@@ -147,7 +147,7 @@ export const createOrder = async (req, res) => {
             <p>Estimated Delivery Window: <strong>5-7 business days</strong></p>
 
             <p style="margin-top:18px;text-align:center">
-              <a href="${frontend}/order/${order._id}" style="background:#4f46e5;color:#fff;padding:12px 18px;border-radius:6px;text-decoration:none;display:inline-block">View/Manage Your Order</a>
+              <a href="${frontend}/order/${order._id}/track" style="background:#4f46e5;color:#fff;padding:12px 18px;border-radius:6px;text-decoration:none;display:inline-block">View/Manage Your Order</a>
             </p>
 
             <p>If you have any questions, reply to this email or visit our Help Center.</p>
