@@ -29,9 +29,12 @@ const userSchema = new mongoose.Schema(
     resetTokenExpire: { type: Date },
 
     // 🔐 Email verification fields
-    // Default set to true so newly created users are considered verified by default.
-    // Change this carefully if you require email verification for new users.
-    isEmailVerified: { type: Boolean, default: true },
+    // New registrations require email verification by default (OTP flow)
+    isEmailVerified: { type: Boolean, default: false },
+    // OTP-based verification fields
+    emailOTP: { type: String },
+    emailOTPExpire: { type: Date },
+    // Legacy token-based verification (kept for compatibility)
     verificationToken: { type: String },
     verificationTokenExpire: { type: Date },
 

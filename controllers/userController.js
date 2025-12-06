@@ -27,29 +27,25 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ message: 'User already exists' });
     }
 
-    const user = await User.create({ name, email, password, phone });
+    const user = await User.create({ name, email, password, phone, isEmailVerified: false });
 
     if (user) {
-      // Generate verification token and expiry
-      const verificationToken = crypto.randomBytes(20).toString('hex');
-      const verificationTokenExpire = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+      // Generate 5-digit OTP
+      const otp = Math.floor(10000 + Math.random() * 90000).toString();
+      const otpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-      user.verificationToken = verificationToken;
-      user.verificationTokenExpire = verificationTokenExpire;
+      user.emailOTP = otp;
+      user.emailOTPExpire = otpExpire;
       await user.save();
 
-      // Build verification email using reminder-style simple template
-      const frontend = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
-      const verificationUrl = `${frontend}/verify-email/${verificationToken}`;
-      const subject = 'Verify Your Email Address';
+      // Build OTP email
+      const subject = 'Your verification code';
       const html = `
         <div style="font-family: Arial, Helvetica, sans-serif; color:#333;">
           <p>Hi ${user.name || 'Customer'},</p>
-          <p>Thank you for creating an account with us. Please verify your email address by clicking the link below:</p>
-          <p><a href="${verificationUrl}" style="display:inline-block;padding:10px 14px;background:#28a745;color:#fff;border-radius:6px;text-decoration:none;">Verify Email Address</a></p>
-          <p>Or copy this link into your browser: <a href="${verificationUrl}">${verificationUrl}</a></p>
-          <p>This link will expire in 24 hours.</p>
-          <p>If you did not create this account, please ignore this email.</p>
+          <p>Your verification code is:</p>
+          <div style="display:inline-block;padding:10px 14px;background:#f1f5f9;border-radius:6px;font-weight:700;letter-spacing:6px">${otp}</div>
+          <p>This code expires in 10 minutes.</p>
           <hr />
           <p style="font-size:12px;color:#666;">© ${new Date().getFullYear()} Manwell Store</p>
         </div>
@@ -59,7 +55,7 @@ export const registerUser = async (req, res) => {
       try {
         await sendEmail(user.email, subject, html);
       } catch (emailErr) {
-        console.error('Failed to send verification email on register:', emailErr && emailErr.message ? emailErr.message : emailErr);
+        console.error('Failed to send OTP email on register:', emailErr && emailErr.message ? emailErr.message : emailErr);
         emailSent = false;
       }
 
@@ -71,12 +67,12 @@ export const registerUser = async (req, res) => {
         role: user.role,
       };
 
-      // Return created user info; include resend hint if email failed
       return res.status(201).json({
         ...payloadUser,
         token: generateToken(user._id),
-        message: emailSent ? 'Verification email sent. Please check your inbox.' : 'Account created but failed to send verification email.',
-        resendVerification: emailSent ? false : true,
+        message: emailSent ? 'Verification code sent to email.' : 'Account created but failed to send verification email.',
+        requiresOtp: true,
+        email: user.email,
       });
     } else {
       res.status(400).json({ message: 'Invalid user data' });

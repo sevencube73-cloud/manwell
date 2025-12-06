@@ -8,6 +8,8 @@ import {
   verifyEmail,
   verifyEmailRedirect,
   resendVerificationEmail,
+  verifyOtp,
+  resendOtp,
   googleAuthCallback,
   getGoogleUser,
   linkGoogleAccount,
@@ -22,6 +24,9 @@ router.post("/verify-email/:token", verifyEmail);
 // Allow GET requests from email clients to verify and then redirect to frontend
 router.get("/verify-email/:token", verifyEmailRedirect || verifyEmail);
 router.post("/resend-verification-email", resendVerificationEmail);
+// OTP endpoints
+router.post('/verify-otp', verifyOtp);
+router.post('/resend-otp', resendOtp);
 // Convenience GET route for quick resend via URL (careful: exposes email in URL)
 router.get("/resend-verification-email/:email", async (req, res) => {
   try {

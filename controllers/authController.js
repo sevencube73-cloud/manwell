@@ -12,83 +12,40 @@ export const registerUser = async (req, res) => {
     if (userExists)
       return res.status(400).json({ message: "Email already registered" });
 
-    // Generate verification token
-    const verificationToken = crypto.randomBytes(20).toString("hex");
-    const verificationTokenExpire = Date.now() + 24 * 60 * 60 * 1000; // 24 hours expiry
-
+    // Create user (email not verified by default)
     const newUser = await User.create({
       name,
       email,
       password,
       phone,
       address,
-      verificationToken,
-      verificationTokenExpire,
+      isEmailVerified: false,
     });
 
-    // Send verification email -> point to backend verify endpoint so link works from email clients
-    const backendBase = process.env.SERVER_URL || process.env.API_URL || `http://localhost:${process.env.PORT || 5000}`;
-    const verificationUrl = `${backendBase}/api/auth/verify-email/${verificationToken}`;
+    // Generate 5-digit numeric OTP
+    const otp = Math.floor(10000 + Math.random() * 90000).toString();
+    const otpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
 
+    newUser.emailOTP = otp;
+    newUser.emailOTPExpire = otpExpire;
+    await newUser.save();
+
+    // Send OTP email
     const html = `
       <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f7f8fa; padding: 40px 0;">
         <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
-          
-          <!-- Header -->
           <div style="background: linear-gradient(135deg, #28a745, #20c997); padding: 25px; text-align: center; color: #fff;">
-            <h1 style="margin: 0; font-size: 22px;">✉️ Verify Your Email</h1>
+            <h1 style="margin: 0; font-size: 22px;">Your Manwell verification code</h1>
           </div>
-
-          <!-- Body -->
           <div style="padding: 30px; color: #333;">
-            <p style="font-size: 16px;">Hello <b>${name || "User"}</b>,</p>
-            <p style="font-size: 15px; line-height: 1.6;">
-              Thank you for registering with us! To complete your account setup and get started, please verify your email address by clicking the button below.
-            </p>
-
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${verificationUrl}" 
-                style="background: linear-gradient(135deg, #28a745, #20c997); color: #fff; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-size: 16px; font-weight: 600;">
-                Verify Email Address
-              </a>
+            <p style="font-size: 16px;">Hello <b>${name || 'User'}</b>,</p>
+            <p style="font-size: 15px; line-height: 1.6;">Use the following 5-digit code to verify your email address. This code will expire in 10 minutes.</p>
+            <div style="text-align:center; margin: 20px 0;">
+              <div style="display:inline-block; padding: 18px 28px; background:#f1f5f9; border-radius:8px; font-size:22px; font-weight:700; letter-spacing:6px;">${otp}</div>
             </div>
-
-            <p style="font-size: 14px; color: #666; line-height: 1.6;">
-              Or copy and paste this link in your browser:<br>
-              <a href="${verificationUrl}" style="color: #007bff; text-decoration: none; word-break: break-all;">${verificationUrl}</a>
-            </p>
-
-            <p style="font-size: 14px; color: #666; line-height: 1.6;">
-              This link will expire in <b>24 hours</b> for your security.
-            </p>
-
+            <p style="font-size: 13px; color: #666;">If you did not create this account, you can ignore this message.</p>
             <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-
-            <p style="font-size: 13px; color: #999;">
-              Need help? Contact our support team at 
-              <a href="mailto:manwellstore@gmail.com" style="color: #007bff; text-decoration: none;">manwellstore@gmail.com</a>.
-            </p>
-          </div>
-
-          <!-- Footer -->
-          <div style="background: #f0f2f5; padding: 20px; text-align: center;">
-            <p style="font-size: 14px; color: #555; margin-bottom: 10px;">Follow us on</p>
-            <div style="margin-bottom: 10px;">
-              <a href="https://facebook.com" style="margin: 0 8px; text-decoration: none;">
-                <img src="https://cdn-icons-png.flaticon.com/512/733/733547.png" width="24" alt="Facebook" />
-              </a>
-              <a href="https://twitter.com" style="margin: 0 8px; text-decoration: none;">
-                <img src="https://cdn-icons-png.flaticon.com/512/733/733579.png" width="24" alt="Twitter" />
-              </a>
-              <a href="https://instagram.com" style="margin: 0 8px; text-decoration: none;">
-                <img src="https://cdn-icons-png.flaticon.com/512/2111/2111463.png" width="24" alt="Instagram" />
-              </a>
-              <a href="https://linkedin.com" style="margin: 0 8px; text-decoration: none;">
-                <img src="https://cdn-icons-png.flaticon.com/512/174/174857.png" width="24" alt="LinkedIn" />
-              </a>
-            </div>
-
-            <p style="font-size: 12px; color: #999;">© ${new Date().getFullYear()} Manwell Store. All rights reserved.</p>
+            <p style="font-size: 12px; color: #999;">© ${new Date().getFullYear()} Manwell Store</p>
           </div>
         </div>
       </div>
@@ -96,30 +53,22 @@ export const registerUser = async (req, res) => {
 
     let emailSent = true;
     try {
-      await sendEmail(email, "Verify Your Email Address", html);
+      await sendEmail(email, 'Your Manwell verification code', html);
     } catch (emailError) {
       emailSent = false;
-      console.error("Failed to send verification email for user:", email, emailError.message || emailError);
+      console.error('Failed to send OTP email for user:', email, emailError.message || emailError);
     }
 
-    if (emailSent) {
-      return res.status(201).json({
-        success: true,
-        message: "Account registered successfully. Please check your email to verify your account.",
-      });
-    }
-
-    // Account created but email failed to send
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      message: "Account created successfully, but we were unable to send the verification email.",
-      resendVerification: true,
-      resendEndpoint: "/api/auth/resend-verification-email",
-      note: "Please contact support or use the resend endpoint to receive a verification email.",
+      message: emailSent ? 'Account created. A verification code has been sent to your email.' : 'Account created but failed to send verification email.',
+      requiresOtp: true,
+      email: newUser.email,
+      resendAvailable: !emailSent,
     });
   } catch (error) {
     res.status(500).json({
-      message: "Registration failed",
+      message: 'Registration failed',
       error: error.message,
     });
   }
@@ -360,6 +309,71 @@ export const verifyEmailRedirect = async (req, res) => {
     console.error('Error in verifyEmailRedirect:', error);
     const clientBase = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
     return res.redirect(`${clientBase}/verify-email?status=error&message=server_error`);
+  }
+};
+
+// ✅ Verify OTP
+export const verifyOtp = async (req, res) => {
+  const { email, otp } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (!user.emailOTP || !user.emailOTPExpire)
+      return res.status(400).json({ message: 'No OTP found for this user' });
+
+    if (user.emailOTPExpire < Date.now())
+      return res.status(400).json({ message: 'OTP expired. Please request a new one.' });
+
+    if (user.emailOTP !== String(otp).trim())
+      return res.status(400).json({ message: 'Invalid OTP code' });
+
+    user.isEmailVerified = true;
+    user.emailOTP = undefined;
+    user.emailOTPExpire = undefined;
+    user.verificationToken = undefined;
+    user.verificationTokenExpire = undefined;
+    await user.save();
+
+    res.json({ success: true, message: 'Email verified successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'OTP verification failed', error: error.message });
+  }
+};
+
+// ✅ Resend OTP
+export const resendOtp = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (user.isEmailVerified) return res.status(400).json({ message: 'Email already verified' });
+
+    // Generate new OTP
+    const otp = Math.floor(10000 + Math.random() * 90000).toString();
+    const otpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    user.emailOTP = otp;
+    user.emailOTPExpire = otpExpire;
+    await user.save();
+
+    const html = `
+      <div style="font-family: Arial, Helvetica, sans-serif; padding: 20px;">
+        <p>Hello <b>${user.name || 'User'}</b>,</p>
+        <p>Your new verification code is:</p>
+        <div style="font-size: 20px; font-weight:700; background:#f3f4f6; display:inline-block; padding:10px 18px; border-radius:6px">${otp}</div>
+        <p style="color:#666; margin-top:12px;">This code expires in 10 minutes.</p>
+      </div>
+    `;
+
+    await sendEmail(user.email, 'Your Manwell verification code', html);
+
+    res.json({ success: true, message: 'OTP resent to email' });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to resend OTP', error: error.message });
   }
 };
 

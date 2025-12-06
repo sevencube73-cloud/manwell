@@ -17,6 +17,7 @@ import {
   deleteSavedAddress,
   setDefaultAddress,
 } from '../controllers/userController.js';
+import { verifyOtp, resendOtp } from '../controllers/authController.js';
 import { protect, admin } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -24,6 +25,9 @@ const router = express.Router();
 // Public routes
 router.post('/register', registerUser);
 router.post('/login', loginUser);
+// OTP endpoints (forwarded to auth controller)
+router.post('/verify-otp', verifyOtp);
+router.post('/resend-otp', resendOtp);
 
 // Protected routes
 router.get('/profile', protect, getUserProfile);
