@@ -48,6 +48,8 @@ export const createOrder = async (req, res) => {
         product: product._id,
         qty: item.qty,
         price: product.price,
+        name: product.name,
+        image: product.images?.[0]?.url || product.image || ''
       });
     }
 
@@ -82,6 +84,85 @@ export const createOrder = async (req, res) => {
     });
 
     await order.save();
+
+    // Send order confirmation email (do not fail order creation if email fails)
+    (async () => {
+      try {
+        const companyName = process.env.COMPANY_NAME || 'Manwell';
+        const frontend = process.env.FRONTEND_URL || 'https://manwellstore.com';
+        const orderNumber = order.orderId || order._id;
+
+        // Build items HTML
+        const itemsHtml = (order.orderItems || []).map(it => {
+          const img = it.image ? `<img src="${it.image}" alt="${it.name}" style="width:48px;height:48px;object-fit:cover;border-radius:4px;margin-right:8px"/>` : '';
+          return `
+            <tr>
+              <td style="padding:8px;vertical-align:middle">${img}<strong>${it.name}</strong></td>
+              <td style="padding:8px;vertical-align:middle;text-align:center">${it.qty}</td>
+              <td style="padding:8px;vertical-align:middle;text-align:right">KES ${Number(it.price).toFixed(2)}</td>
+            </tr>
+          `;
+        }).join('');
+
+        const subtotal = Number(order.totalPrice || 0).toFixed(2);
+        const shipping = Number(order.shippingFee || 0).toFixed(2);
+        const tax = '0.00';
+        const total = Number(order.finalAmount || order.totalPrice || 0).toFixed(2);
+
+        const user = await User.findById(req.user._id).select('name email');
+
+        const subject = `Your ${companyName} order #${orderNumber} is confirmed`;
+
+        const html = `
+          <div style="font-family:Arial,Helvetica,sans-serif;color:#111">
+            <h2>Thank you for your order, ${user?.name || 'Customer'}!</h2>
+            <p>We've received your order and are getting it ready to ship. Below are the details:</p>
+
+            <h3>Order Summary</h3>
+            <table style="width:100%;border-collapse:collapse">
+              <thead>
+                <tr>
+                  <th style="text-align:left;padding:8px">Item</th>
+                  <th style="text-align:center;padding:8px">Qty</th>
+                  <th style="text-align:right;padding:8px">Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsHtml}
+              </tbody>
+            </table>
+
+            <p style="margin-top:12px">Subtotal: <strong>KES ${subtotal}</strong><br/>Shipping: <strong>KES ${shipping}</strong><br/>Tax/VAT: <strong>KES ${tax}</strong></p>
+            <p style="font-size:18px">Total Paid: <strong>KES ${total}</strong></p>
+
+            <p>Order Number: <strong>#${orderNumber}</strong><br/>Order Date: <strong>${new Date(order.createdAt).toLocaleString()}</strong></p>
+
+            <h3>Shipping & Delivery</h3>
+            <p>Shipping Address:<br/>
+              ${order.shippingAddress?.fullName || ''}<br/>
+              ${order.shippingAddress?.address || ''}<br/>
+              ${order.shippingAddress?.city || ''} ${order.shippingAddress?.county || ''}<br/>
+            </p>
+            <p>Payment Method: <strong>${order.paymentMethod}</strong></p>
+            <p>Estimated Delivery Window: <strong>5-7 business days</strong></p>
+
+            <p style="margin-top:18px;text-align:center">
+              <a href="${frontend}/order/${order._id}" style="background:#4f46e5;color:#fff;padding:12px 18px;border-radius:6px;text-decoration:none;display:inline-block">View/Manage Your Order</a>
+            </p>
+
+            <p>If you have any questions, reply to this email or visit our Help Center.</p>
+            <p>Warm regards,<br/>The ${companyName} Team</p>
+          </div>
+        `;
+
+        if (user && user.email) {
+          await sendEmail(user.email, subject, html);
+          console.log('Order confirmation email sent to', user.email);
+        }
+      } catch (emailErr) {
+        console.error('Failed to send order confirmation email:', emailErr.message || emailErr);
+      }
+    })();
 
     res.status(201).json({ message: 'Order created successfully', order });
   } catch (error) {
