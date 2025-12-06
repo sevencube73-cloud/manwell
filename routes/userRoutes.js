@@ -10,6 +10,7 @@ import {
   verifyCustomerByAdmin,
   activateCustomer,
   makeUserAdmin,
+  revokeUserAdmin,
   getSavedAddresses,
   addSavedAddress,
   updateSavedAddress,
@@ -42,5 +43,6 @@ router.put('/customers/:id/activate', protect, admin, activateCustomer);
 router.put('/customers/:id/verify', protect, admin, verifyCustomerByAdmin);
 router.delete('/customers/:id', protect, admin, deleteCustomer);
 router.put('/:id/make-admin', protect, admin, makeUserAdmin);
+router.put('/:id/revoke-admin', protect, admin, revokeUserAdmin);
 
 export default router;

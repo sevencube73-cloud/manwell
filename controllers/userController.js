@@ -266,6 +266,24 @@ export const makeUserAdmin = async (req, res) => {
   }
 };
 
+// @desc Revoke admin role (demote to user)
+// @route PUT /api/users/:id/revoke-admin
+// @access Admin
+export const revokeUserAdmin = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (user.role !== 'admin') return res.status(400).json({ message: 'User is not an admin' });
+
+    user.role = 'user';
+    await user.save();
+
+    res.json({ message: 'Admin privileges revoked; user is now a regular user', user });
+  } catch (error) {
+    res.status(500).json({ message: 'Error revoking admin role', error: error.message });
+  }
+};
+
 // @desc Get all saved shipping addresses for user
 // @route GET /api/users/addresses
 // @access Protected
