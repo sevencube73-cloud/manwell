@@ -10,7 +10,10 @@ const AdminSettingSchema = new mongoose.Schema({
 AdminSettingSchema.statics.getSettings = async function () {
   const settings = await this.findOne({ key: 'payment_settings' });
   if (settings) return settings;
-  const created = await this.create({ key: 'payment_settings', value: { mpesaEnabled: false, payOnDeliveryEnabled: true } });
+  const created = await this.create({
+    key: 'payment_settings',
+    value: { mpesaEnabled: false, payOnDeliveryEnabled: true, marqueeText: '' },
+  });
   return created;
 };
 
