@@ -12,6 +12,15 @@ const generateToken = (id) => {
 
 // ========================== AUTH & PROFILE ==========================
 
+import { getWelcomeEmailHtml } from '../templates/welcomeEmail.js';
+
+// Generate JWT Token
+const generateToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+};
+
+// ========================== AUTH & PROFILE ==========================
+
 // @desc Register new user
 // @route POST /api/users/register
 // @access Public
@@ -35,6 +44,14 @@ export const registerUser = async (req, res) => {
     if (!isVerificationRequired) {
       // Verification is disabled: create user and log them in immediately
       const user = await User.create({ name, email, password, phone, isEmailVerified: true });
+
+      // Non-blockingly send welcome email
+      try {
+        const welcomeHtml = getWelcomeEmailHtml({ name: user.name });
+        sendEmail({ to: user.email, subject: 'Welcome to Manwell Store!', html: welcomeHtml });
+      } catch (emailErr) {
+        console.error('Failed to send welcome email (non-blocking):', emailErr.message);
+      }
 
       return res.status(201).json({
         _id: user._id,

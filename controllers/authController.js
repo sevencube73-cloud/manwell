@@ -320,6 +320,8 @@ export const verifyEmailRedirect = async (req, res) => {
   }
 };
 
+import { getWelcomeEmailHtml } from '../templates/welcomeEmail.js';
+
 // ✅ Verify OTP
 export const verifyOtp = async (req, res) => {
   const { email, otp } = req.body;
@@ -343,6 +345,14 @@ export const verifyOtp = async (req, res) => {
     user.verificationToken = undefined;
     user.verificationTokenExpire = undefined;
     await user.save();
+
+    // Non-blockingly send welcome email after successful verification
+    try {
+      const welcomeHtml = getWelcomeEmailHtml({ name: user.name });
+      sendEmail({ to: user.email, subject: 'Welcome to Manwell Store!', html: welcomeHtml });
+    } catch (emailErr) {
+      console.error('Failed to send welcome email (non-blocking):', emailErr.message);
+    }
 
     res.json({ success: true, message: 'Email verified successfully' });
   } catch (error) {
