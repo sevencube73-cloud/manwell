@@ -77,9 +77,6 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
-// ✅ Maintenance Mode Middleware (applied to all /api routes)
-app.use('/api', maintenanceMiddleware);
-
 // ✅ API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
