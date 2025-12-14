@@ -1,4 +1,5 @@
 import { sendEmail } from "../utils/sendEmail.js";
+import { transporter } from "../config/mail.js";
 
 export const sendTestEmail = async (req, res) => {
   const to = req.body.to || process.env.DEV_TEST_EMAIL;
@@ -15,6 +16,16 @@ export const sendTestEmail = async (req, res) => {
   } catch (error) {
     console.error("❌ Test email failed:", error);
     return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+export const verifySmtp = async (req, res) => {
+  try {
+    await transporter.verify();
+    return res.json({ ok: true, message: "SMTP transporter verified successfully" });
+  } catch (err) {
+    console.error("SMTP verify failed:", err);
+    return res.status(500).json({ ok: false, error: err.message });
   }
 };
 
