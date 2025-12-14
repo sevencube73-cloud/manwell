@@ -53,7 +53,7 @@ export const registerUser = async (req, res) => {
 
       let emailSent = true;
       try {
-        await sendEmail(user.email, subject, html);
+        await sendEmail({ to: user.email, subject, html });
       } catch (emailErr) {
         console.error('Failed to send OTP email on register:', emailErr && emailErr.message ? emailErr.message : emailErr);
         emailSent = false;

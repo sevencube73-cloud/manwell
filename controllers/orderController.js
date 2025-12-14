@@ -156,7 +156,7 @@ export const createOrder = async (req, res) => {
         `;
 
         if (user && user.email) {
-          await sendEmail(user.email, subject, html);
+          await sendEmail({ to: user.email, subject, html });
           console.log('Order confirmation email sent to', user.email);
         }
       } catch (emailErr) {
@@ -328,7 +328,7 @@ export const sendPaymentReminder = async (req, res) => {
 
     try {
       if (order.user?.email) {
-        await sendEmail(order.user.email, subject, html);
+        await sendEmail({ to: order.user.email, subject, html });
       }
     } catch (emailErr) {
       console.error('Failed to send payment reminder email:', emailErr.message || emailErr);

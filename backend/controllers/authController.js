@@ -144,7 +144,7 @@ export const requestPasswordReset = async (req, res) => {
       </div>
     `;
 
-    await sendEmail(user.email, "Password Reset Request", html);
+    await sendEmail({ to: user.email, subject: "Password Reset Request", html });
 
     res.status(200).json({
       success: true,

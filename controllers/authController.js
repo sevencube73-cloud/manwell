@@ -53,7 +53,7 @@ export const registerUser = async (req, res) => {
 
     let emailSent = true;
     try {
-      await sendEmail(email, 'Your Manwell verification code', html);
+      await sendEmail({ to: email, subject: 'Your Manwell verification code', html });
     } catch (emailError) {
       emailSent = false;
       console.error('Failed to send OTP email for user:', email, emailError.message || emailError);
@@ -198,7 +198,7 @@ export const requestPasswordReset = async (req, res) => {
       </div>
     `;
 
-    await sendEmail(user.email, "Password Reset Request", html);
+    await sendEmail({ to: user.email, subject: "Password Reset Request", html });
 
     res.status(200).json({
       success: true,
@@ -369,7 +369,7 @@ export const resendOtp = async (req, res) => {
       </div>
     `;
 
-    await sendEmail(user.email, 'Your Manwell verification code', html);
+    await sendEmail({ to: user.email, subject: 'Your Manwell verification code', html });
 
     res.json({ success: true, message: 'OTP resent to email' });
   } catch (error) {
@@ -465,7 +465,7 @@ export const resendVerificationEmail = async (req, res) => {
       </div>
     `;
 
-    await sendEmail(email, "Verify Your Email Address", html);
+    await sendEmail({ to: email, subject: "Verify Your Email Address", html });
 
     res.status(200).json({
       success: true,
