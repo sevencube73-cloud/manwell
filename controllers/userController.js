@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { sendEmail } from '../utils/sendEmail.js';
+import AdminSetting from '../models/AdminSetting.js'; // Import AdminSetting
 
 // Generate JWT Token
 const generateToken = (id) => {
@@ -27,9 +28,28 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ message: 'User already exists' });
     }
 
-    const user = await User.create({ name, email, password, phone, isEmailVerified: false });
+    // Get email verification setting from admin config
+    const adminSettings = await AdminSetting.getSettings();
+    const isVerificationRequired = adminSettings.value.isEmailVerificationRequired ?? true;
 
-    if (user) {
+    if (!isVerificationRequired) {
+      // Verification is disabled: create user and log them in immediately
+      const user = await User.create({ name, email, password, phone, isEmailVerified: true });
+
+      return res.status(201).json({
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        token: generateToken(user._id),
+        message: 'Account created successfully.',
+        requiresOtp: false, // Explicitly tell frontend no OTP is needed
+      });
+    } else {
+      // Verification is enabled: proceed with OTP flow
+      const user = await User.create({ name, email, password, phone, isEmailVerified: false });
+
       // Generate 5-digit OTP
       const otp = Math.floor(10000 + Math.random() * 90000).toString();
       const otpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
@@ -69,13 +89,11 @@ export const registerUser = async (req, res) => {
 
       return res.status(201).json({
         ...payloadUser,
-        token: generateToken(user._id),
+        token: generateToken(user._id), // Still send token in case frontend wants it
         message: emailSent ? 'Verification code sent to email.' : 'Account created but failed to send verification email.',
         requiresOtp: true,
         email: user.email,
       });
-    } else {
-      res.status(400).json({ message: 'Invalid user data' });
     }
   } catch (error) {
     res.status(500).json({ message: 'Error registering user', error: error.message });
