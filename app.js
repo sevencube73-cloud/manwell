@@ -29,6 +29,8 @@ import dealRoutes from "./routes/dealRoutes.js";
 import adminSettingsRoutes from "./routes/adminSettingsRoutes.js";
 import debugRoutes from "./routes/debugRoutes.js";
 
+import maintenanceMiddleware from "./middleware/maintenanceMiddleware.js";
+
 // ✅ Connect to DB
 connectDB();
 
@@ -74,6 +76,9 @@ app.use(
 // ✅ Passport Initialization
 app.use(passport.initialize());
 app.use(passport.session());
+
+// ✅ Maintenance Mode Middleware (applied to all /api routes)
+app.use('/api', maintenanceMiddleware);
 
 // ✅ API Routes
 app.use("/api/auth", authRoutes);

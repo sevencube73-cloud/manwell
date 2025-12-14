@@ -17,6 +17,9 @@ AdminSettingSchema.statics.getSettings = async function () {
       payOnDeliveryEnabled: true, 
       marqueeText: '',
       isEmailVerificationRequired: true,
+      isMaintenanceMode: false,
+      maintenanceTitle: 'Site Under Maintenance',
+      maintenanceMessage: 'We are currently performing scheduled maintenance. Please check back soon.',
     },
   });
   return created;

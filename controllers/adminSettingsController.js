@@ -14,6 +14,9 @@ export const updateSettings = asyncHandler(async (req, res) => {
     payOnDeliveryEnabled, 
     marqueeText,
     isEmailVerificationRequired,
+    isMaintenanceMode,
+    maintenanceTitle,
+    maintenanceMessage,
   } = req.body;
 
   const settingsDoc = await AdminSetting.getSettings();
@@ -31,6 +34,16 @@ export const updateSettings = asyncHandler(async (req, res) => {
   }
   if (typeof isEmailVerificationRequired === 'boolean') {
     newVal.isEmailVerificationRequired = isEmailVerificationRequired;
+  }
+  // Add maintenance mode fields
+  if (typeof isMaintenanceMode === 'boolean') {
+    newVal.isMaintenanceMode = isMaintenanceMode;
+  }
+  if (typeof maintenanceTitle === 'string') {
+    newVal.maintenanceTitle = maintenanceTitle;
+  }
+  if (typeof maintenanceMessage === 'string') {
+    newVal.maintenanceMessage = maintenanceMessage;
   }
 
   settingsDoc.value = newVal;
