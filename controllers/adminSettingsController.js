@@ -57,14 +57,13 @@ export const updateSettings = asyncHandler(async (req, res) => {
   // If maintenance mode status has changed, notify users.
   if (typeof isMaintenanceMode === 'boolean' && isMaintenanceMode !== oldMaintenanceStatus) {
     // 1. Notify connected clients via WebSocket for instant UI update
-    req.io.emit('maintenanceStatusChanged', settingsDoc.value);
+    req.app.get('io').emit('maintenanceStatusChanged', settingsDoc.value);
 
     // 2. Asynchronously send emails to all users.
-    // Note: For a large user base, this should be offloaded to a background job queue
-    // to avoid impacting server performance and prevent request timeouts.
+    // Note: For a large user base, this should be offloaded to a background job queue.
     (async () => {
       try {
-        const users = await User.find({ role: 'user' }, 'name email');
+        const users = await User.find({ role: { $in: ['user', 'customer'] } }, 'name email');
         const subject = isMaintenanceMode ? 'Site Maintenance Starting' : 'We Are Back Online!';
         
         console.log(`Sending maintenance notifications to ${users.length} users...`);

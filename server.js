@@ -20,11 +20,8 @@ const io = new Server(httpServer, {
   }
 });
 
-// Middleware to attach io to each request
-app.use((req, res, next) => {
-  req.io = io;
-  next();
-});
+// Make io accessible to our router
+app.set('io', io);
 
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
