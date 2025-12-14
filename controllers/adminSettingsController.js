@@ -50,5 +50,10 @@ export const updateSettings = asyncHandler(async (req, res) => {
   settingsDoc.updatedBy = req.user?._id;
   await settingsDoc.save();
 
+  // If maintenance mode was changed, broadcast the new status to all clients
+  if (typeof isMaintenanceMode === 'boolean') {
+    req.io.emit('maintenanceStatusChanged', settingsDoc.value);
+  }
+
   res.json({ message: 'Settings updated', settings: settingsDoc.value });
 });
