@@ -1,5 +1,9 @@
 import asyncHandler from 'express-async-handler';
 import AdminSetting from '../models/AdminSetting.js';
+import User from '../models/User.js';
+import { sendEmail } from '../utils/sendEmail.js';
+import { getMaintenanceStartHtml } from '../templates/maintenanceStart.js';
+import { getMaintenanceEndHtml } from '../templates/maintenanceEnd.js';
 
 // GET /api/admin/settings  (public read)
 export const getSettings = asyncHandler(async (req, res) => {
@@ -20,6 +24,7 @@ export const updateSettings = asyncHandler(async (req, res) => {
   } = req.body;
 
   const settingsDoc = await AdminSetting.getSettings();
+  const oldMaintenanceStatus = settingsDoc.value.isMaintenanceMode;
 
   const newVal = { ...settingsDoc.value };
 
@@ -35,7 +40,6 @@ export const updateSettings = asyncHandler(async (req, res) => {
   if (typeof isEmailVerificationRequired === 'boolean') {
     newVal.isEmailVerificationRequired = isEmailVerificationRequired;
   }
-  // Add maintenance mode fields
   if (typeof isMaintenanceMode === 'boolean') {
     newVal.isMaintenanceMode = isMaintenanceMode;
   }
@@ -50,10 +54,40 @@ export const updateSettings = asyncHandler(async (req, res) => {
   settingsDoc.updatedBy = req.user?._id;
   await settingsDoc.save();
 
-  // If maintenance mode was changed, broadcast the new status to all clients
-  if (typeof isMaintenanceMode === 'boolean') {
+  // If maintenance mode status has changed, notify users.
+  if (typeof isMaintenanceMode === 'boolean' && isMaintenanceMode !== oldMaintenanceStatus) {
+    // 1. Notify connected clients via WebSocket for instant UI update
     req.io.emit('maintenanceStatusChanged', settingsDoc.value);
+
+    // 2. Asynchronously send emails to all users.
+    // Note: For a large user base, this should be offloaded to a background job queue
+    // to avoid impacting server performance and prevent request timeouts.
+    (async () => {
+      try {
+        const users = await User.find({ role: 'user' }, 'name email');
+        const subject = isMaintenanceMode ? 'Site Maintenance Starting' : 'We Are Back Online!';
+        
+        console.log(`Sending maintenance notifications to ${users.length} users...`);
+
+        for (const user of users) {
+          const html = isMaintenanceMode
+            ? getMaintenanceStartHtml({ 
+                name: user.name, 
+                maintenanceTitle: settingsDoc.value.maintenanceTitle,
+                maintenanceMessage: settingsDoc.value.maintenanceMessage,
+              })
+            : getMaintenanceEndHtml({ name: user.name });
+
+          // Fire-and-forget: send email without awaiting to not block the loop.
+          sendEmail({ to: user.email, subject, html }).catch(err => {
+            console.error(`Failed to send maintenance email to ${user.email}:`, err.message);
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch users for maintenance notification:', error);
+      }
+    })();
   }
 
-  res.json({ message: 'Settings updated', settings: settingsDoc.value });
+  res.json({ message: 'Settings updated successfully', settings: settingsDoc.value });
 });
