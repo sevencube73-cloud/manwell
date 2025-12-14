@@ -23,8 +23,13 @@ export const sendEmail = async ({ to, subject, html }) => {
     throw new Error("Missing required email fields: to, subject, html");
   }
 
-  // Prepare common mail options
-  const fromAddress = process.env.FROM_EMAIL || "no-reply@manwell.com";
+  // ⚠️ CRITICAL: FROM_EMAIL must be set and verified in Brevo
+  const fromAddress = process.env.FROM_EMAIL;
+  if (!fromAddress) {
+    console.error('❌ CRITICAL: FROM_EMAIL not set. Set FROM_EMAIL in environment variables.');
+    throw new Error("FROM_EMAIL environment variable is required");
+  }
+
   const mailOptions = {
     from: `"Manwell Store" <${fromAddress}>`,
     to,
@@ -37,55 +42,68 @@ export const sendEmail = async ({ to, subject, html }) => {
   const smtpUserSet = !!process.env.SMTP_USER;
   const smtpPassSet = !!process.env.SMTP_PASS;
   const apiKeySet = !!process.env.BREVO_API_KEY;
-  console.log(`📧 Email dispatch: to=${to} | SMTP config=${smtpUserSet && smtpPassSet ? "✅" : "❌"} | API key=${apiKeySet ? "✅" : "❌"}`);
+  console.log(`📧 Email dispatch: to=${to} | from=${fromAddress} | SMTP=${smtpUserSet && smtpPassSet ? "✅" : "❌"} | API=${apiKeySet ? "✅" : "❌"}`);
 
-  // First attempt: SMTP via Nodemailer
-  try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`✅ SMTP email sent to ${to} | Subject: "${subject}" | MessageID: ${info.messageId}`);
-    return { provider: "smtp", info };
-  } catch (smtpError) {
-    console.warn(`⚠️ SMTP send failed for ${to}: ${smtpError.message || smtpError}`);
+  // First attempt: SMTP via Nodemailer (if configured)
+  if (smtpUserSet && smtpPassSet) {
+    try {
+      const info = await transporter.sendMail(mailOptions);
+      console.log(`✅ SMTP email sent to ${to} | Subject: "${subject}" | MessageID: ${info.messageId}`);
+      return { provider: "smtp", info };
+    } catch (smtpError) {
+      console.warn(`⚠️ SMTP send failed for ${to}: ${smtpError.message || smtpError}`);
+    }
+  }
 
-    // If Brevo API key available, attempt HTTP fallback (likely to work where SMTP egress is blocked)
-    const apiKey = process.env.BREVO_API_KEY;
-    if (apiKey) {
-      try {
-        const payload = {
-          sender: { name: "Manwell Store", email: fromAddress },
-          to: [{ email: to }],
-          subject,
-          htmlContent: html,
-          textContent: mailOptions.text
-        };
-
-        const res = await fetch(BREVO_API_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": apiKey
-          },
-          body: JSON.stringify(payload),
-          // keep short timeout via AbortController if needed upstream
-        });
-
-        if (!res.ok) {
-          const body = await res.text();
-          console.error(`❌ Brevo API fallback failed: ${res.status} ${res.statusText} - ${body}`);
-          throw new Error(`Brevo API responded ${res.status}`);
+  // Second attempt: Brevo API (primary for most environments)
+  const apiKey = process.env.BREVO_API_KEY;
+  if (apiKey) {
+    try {
+      // Brevo API v3 expects exact structure
+      const payload = {
+        sender: { 
+          name: "Manwell Store", 
+          email: fromAddress 
+        },
+        to: [{ 
+          email: to,
+          name: to.split('@')[0] // Use email prefix as fallback name
+        }],
+        subject,
+        htmlContent: html,
+        textContent: mailOptions.text,
+        replyTo: { 
+          email: fromAddress,
+          name: "Manwell Store"
         }
+      };
 
-        const data = await res.json();
-        console.log(`✅ Brevo API email sent to ${to} | Subject: "${subject}" | id: ${data.messageId || data['messageId'] || 'n/a'}`);
-        return { provider: "brevo-api", info: data };
+      console.log(`📤 Attempting Brevo API with sender: ${fromAddress}`);
+      
+      const res = await fetch(BREVO_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": apiKey
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        console.error(`❌ Brevo API error ${res.status}: ${JSON.stringify(data)}`);
+        throw new Error(`Brevo API responded ${res.status}: ${data.message || data.error || 'Unknown error'}`);
+      }
+
+      console.log(`✅ Brevo API email sent to ${to} | Subject: "${subject}" | id: ${data.messageId || 'n/a'}`);
+      return { provider: "brevo-api", info: data };
       } catch (apiErr) {
-        console.error(`❌ Brevo API fallback failed for ${to}:`, apiErr.message || apiErr);
-        // throw combined error for visibility
-        throw new Error(`SMTP error: ${smtpError.message}; Brevo API error: ${apiErr.message || apiErr}`);
+        console.error(`❌ Brevo API attempt failed for ${to}:`, apiErr.message || apiErr);
       }
     }
 
-    // No API key available or fallback not configured
-    throw new Error(`SMTP send failed and no Brevo API fallback available: ${smtpError.message}`);
+    // No API key available either
+    throw new Error(`Email delivery failed: SMTP timeout and no Brevo API key configured. Set BREVO_API_KEY environment variable.`);
   }
 };
