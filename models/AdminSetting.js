@@ -12,7 +12,12 @@ AdminSettingSchema.statics.getSettings = async function () {
   if (settings) return settings;
   const created = await this.create({
     key: 'payment_settings',
-    value: { mpesaEnabled: false, payOnDeliveryEnabled: true, marqueeText: '' },
+    value: { 
+      mpesaEnabled: false, 
+      payOnDeliveryEnabled: true, 
+      marqueeText: '',
+      isEmailVerificationRequired: true,
+    },
   });
   return created;
 };

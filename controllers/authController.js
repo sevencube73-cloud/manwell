@@ -2,6 +2,7 @@ import crypto from "crypto";
 import User from "../models/User.js";
 import generateToken from "../utils/generateToken.js";
 import { sendEmail } from "../utils/sendEmail.js";
+import AdminSetting from "../models/AdminSetting.js"; // Import AdminSetting
 
 // ✅ Register new user
 export const registerUser = async (req, res) => {
@@ -12,68 +13,101 @@ export const registerUser = async (req, res) => {
     if (userExists)
       return res.status(400).json({ message: "Email already registered" });
 
-    // Create user (email not verified by default)
-    const newUser = await User.create({
-      name,
-      email,
-      password,
-      phone,
-      address,
-      isEmailVerified: false,
-    });
+    // Get email verification setting from admin config
+    const adminSettings = await AdminSetting.getSettings();
+    const isVerificationRequired = adminSettings.value.isEmailVerificationRequired ?? true;
 
-    // Generate 5-digit numeric OTP
-    const otp = Math.floor(10000 + Math.random() * 90000).toString();
-    const otpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+    // --- Conditional Verification Logic ---
+    if (!isVerificationRequired) {
+      // If verification is NOT required, create user and log them in immediately
+      const newUser = await User.create({
+        name,
+        email,
+        password,
+        phone,
+        address,
+        isEmailVerified: true, // Mark as verified immediately
+      });
 
-    newUser.emailOTP = otp;
-    newUser.emailOTPExpire = otpExpire;
-    await newUser.save();
+      const token = generateToken(newUser);
 
-    // Send OTP email
-    const html = `
-      <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f7f8fa; padding: 40px 0;">
-        <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
-          <div style="background: linear-gradient(135deg, #28a745, #20c997); padding: 25px; text-align: center; color: #fff;">
-            <h1 style="margin: 0; font-size: 22px;">Your Manwell verification code</h1>
-          </div>
-          <div style="padding: 30px; color: #333;">
-            <p style="font-size: 16px;">Hello <b>${name || 'User'}</b>,</p>
-            <p style="font-size: 15px; line-height: 1.6;">Use the following 5-digit code to verify your email address. This code will expire in 10 minutes.</p>
-            <div style="text-align:center; margin: 20px 0;">
-              <div style="display:inline-block; padding: 18px 28px; background:#f1f5f9; border-radius:8px; font-size:22px; font-weight:700; letter-spacing:6px;">${otp}</div>
+      return res.status(201).json({
+        success: true,
+        message: "Account created and logged in successfully.",
+        requiresOtp: false, // Let the frontend know no OTP is needed
+        token,
+        user: {
+          id: newUser._id,
+          name: newUser.name,
+          email: newUser.email,
+          role: newUser.role,
+        },
+      });
+
+    } else {
+      // If verification IS required, proceed with the original OTP flow
+      const newUser = await User.create({
+        name,
+        email,
+        password,
+        phone,
+        address,
+        isEmailVerified: false,
+      });
+
+      // Generate 5-digit numeric OTP
+      const otp = Math.floor(10000 + Math.random() * 90000).toString();
+      const otpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+      newUser.emailOTP = otp;
+      newUser.emailOTPExpire = otpExpire;
+      await newUser.save();
+
+      // Send OTP email
+      const html = `
+        <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f7f8fa; padding: 40px 0;">
+          <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+            <div style="background: linear-gradient(135deg, #28a745, #20c997); padding: 25px; text-align: center; color: #fff;">
+              <h1 style="margin: 0; font-size: 22px;">Your Manwell verification code</h1>
             </div>
-            <p style="font-size: 13px; color: #666;">If you did not create this account, you can ignore this message.</p>
-            <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-            <p style="font-size: 12px; color: #999;">© ${new Date().getFullYear()} Manwell Store</p>
+            <div style="padding: 30px; color: #333;">
+              <p style="font-size: 16px;">Hello <b>${name || 'User'}</b>,</p>
+              <p style="font-size: 15px; line-height: 1.6;">Use the following 5-digit code to verify your email address. This code will expire in 10 minutes.</p>
+              <div style="text-align:center; margin: 20px 0;">
+                <div style="display:inline-block; padding: 18px 28px; background:#f1f5f9; border-radius:8px; font-size:22px; font-weight:700; letter-spacing:6px;">${otp}</div>
+              </div>
+              <p style="font-size: 13px; color: #666;">If you did not create this account, you can ignore this message.</p>
+              <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+              <p style="font-size: 12px; color: #999;">© ${new Date().getFullYear()} Manwell Store</p>
+            </div>
           </div>
         </div>
-      </div>
-    `;
+      `;
 
-    let emailSent = true;
-    let emailProvider = "unknown";
-    try {
-      const result = await sendEmail({ to: email, subject: 'Your Manwell verification code', html });
-      emailProvider = result.provider || "unknown";
-    } catch (emailError) {
-      emailSent = false;
-      console.error('Failed to send OTP email for user:', email, emailError.message || emailError);
-    }
-
-    return res.status(201).json({
-      success: true,
-      message: emailSent ? 'Account created. A verification code has been sent to your email.' : 'Account created but failed to send verification email. Please contact support.',
-      requiresOtp: true,
-      email: newUser.email,
-      resendAvailable: !emailSent,
-      emailProvider: emailSent ? emailProvider : null,
-      debugInfo: emailSent ? null : {
-        smtpConfigured: !!(process.env.SMTP_USER && process.env.SMTP_HOST),
-        brevoApiConfigured: !!process.env.BREVO_API_KEY,
-        hint: "Check /api/debug/config for email configuration status"
+      let emailSent = true;
+      let emailProvider = "unknown";
+      try {
+        const result = await sendEmail({ to: email, subject: 'Your Manwell verification code', html });
+        emailProvider = result.provider || "unknown";
+      } catch (emailError) {
+        emailSent = false;
+        console.error('Failed to send OTP email for user:', email, emailError.message || emailError);
       }
-    });
+
+      return res.status(201).json({
+        success: true,
+        message: emailSent ? 'Account created. A verification code has been sent to your email.' : 'Account created but failed to send verification email. Please contact support.',
+        requiresOtp: true,
+        email: newUser.email,
+        resendAvailable: !emailSent,
+        emailProvider: emailSent ? emailProvider : null,
+        debugInfo: emailSent ? null : {
+          smtpConfigured: !!(process.env.SMTP_USER && process.env.SMTP_HOST),
+          brevoApiConfigured: !!process.env.BREVO_API_KEY,
+          hint: "Check /api/debug/config for email configuration status"
+        }
+      });
+    }
   } catch (error) {
     res.status(500).json({
       message: 'Registration failed',

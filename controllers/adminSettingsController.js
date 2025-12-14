@@ -9,15 +9,33 @@ export const getSettings = asyncHandler(async (req, res) => {
 
 // PUT /api/admin/settings  (admin only)
 export const updateSettings = asyncHandler(async (req, res) => {
-  const { mpesaEnabled, payOnDeliveryEnabled, marqueeText } = req.body;
+  const { 
+    mpesaEnabled, 
+    payOnDeliveryEnabled, 
+    marqueeText,
+    isEmailVerificationRequired,
+  } = req.body;
+
   const settingsDoc = await AdminSetting.getSettings();
+
   const newVal = { ...settingsDoc.value };
-  if (typeof mpesaEnabled === 'boolean') newVal.mpesaEnabled = mpesaEnabled;
-  if (typeof payOnDeliveryEnabled === 'boolean') newVal.payOnDeliveryEnabled = payOnDeliveryEnabled;
-  // Accept marqueeText as a string (allow empty string to clear)
-  if (typeof marqueeText === 'string') newVal.marqueeText = marqueeText;
+
+  if (typeof mpesaEnabled === 'boolean') {
+    newVal.mpesaEnabled = mpesaEnabled;
+  }
+  if (typeof payOnDeliveryEnabled === 'boolean') {
+    newVal.payOnDeliveryEnabled = payOnDeliveryEnabled;
+  }
+  if (typeof marqueeText === 'string') {
+    newVal.marqueeText = marqueeText;
+  }
+  if (typeof isEmailVerificationRequired === 'boolean') {
+    newVal.isEmailVerificationRequired = isEmailVerificationRequired;
+  }
+
   settingsDoc.value = newVal;
   settingsDoc.updatedBy = req.user?._id;
   await settingsDoc.save();
+
   res.json({ message: 'Settings updated', settings: settingsDoc.value });
 });
