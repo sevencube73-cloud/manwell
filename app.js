@@ -27,6 +27,7 @@ import discountRoutes from "./routes/discountRoutes.js";
 import couponRoutes from "./routes/couponRoutes.js"
 import dealRoutes from "./routes/dealRoutes.js";
 import adminSettingsRoutes from "./routes/adminSettingsRoutes.js";
+import debugRoutes from "./routes/debugRoutes.js";
 
 // ✅ Connect to DB
 connectDB();
@@ -86,6 +87,7 @@ app.use("/api/pesapal", pesapalRoutes);
 app.use("/api/mpesa", mpesaRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/admin/settings", adminSettingsRoutes);
+app.use("/api/debug", debugRoutes);
 
 // ✅ Newly added discount and coupon modules
 app.use("/api/discounts", discountRoutes);

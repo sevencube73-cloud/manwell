@@ -66,7 +66,7 @@ const main = async () => {
       </div>
     `;
 
-    await sendEmail(email, 'Verify Your Email Address', html);
+    await sendEmail({ to: email, subject: 'Verify Your Email Address', html });
     console.log('Verification email resent to:', email);
     process.exit(0);
   } catch (error) {
