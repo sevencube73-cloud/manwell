@@ -98,12 +98,11 @@ export const sendEmail = async ({ to, subject, html }) => {
 
       console.log(`✅ Brevo API email sent to ${to} | Subject: "${subject}" | id: ${data.messageId || 'n/a'}`);
       return { provider: "brevo-api", info: data };
-      } catch (apiErr) {
-        console.error(`❌ Brevo API attempt failed for ${to}:`, apiErr.message || apiErr);
-      }
+    } catch (apiErr) {
+      console.error(`❌ Brevo API attempt failed for ${to}:`, apiErr.message || apiErr);
     }
-
-    // No API key available either
-    throw new Error(`Email delivery failed: SMTP timeout and no Brevo API key configured. Set BREVO_API_KEY environment variable.`);
   }
+
+  // If we reach here, all configured methods have failed.
+  throw new Error(`Email delivery failed. Both SMTP and Brevo API methods failed or were not configured. Check logs for details.`);
 };
