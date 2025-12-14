@@ -37,5 +37,3 @@ export const sendEmail = async ({ to, subject, html }) => {
     throw new Error(`Email delivery failed: ${error.message}`);
   }
 };
-  }
-};
