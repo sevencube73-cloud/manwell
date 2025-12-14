@@ -1,5 +1,5 @@
 import express from "express";
-import { sendTestEmail, verifySmtp } from "../controllers/debugController.js";
+import { sendTestEmail, verifySmtp, getEmailConfig } from "../controllers/debugController.js";
 
 const router = express.Router();
 
@@ -8,5 +8,8 @@ router.post("/test-email", sendTestEmail);
 
 // GET /api/debug/verify-smtp
 router.get("/verify-smtp", verifySmtp);
+
+// GET /api/debug/config
+router.get("/config", getEmailConfig);
 
 export default router;

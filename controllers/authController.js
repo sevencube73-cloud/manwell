@@ -52,8 +52,10 @@ export const registerUser = async (req, res) => {
     `;
 
     let emailSent = true;
+    let emailProvider = "unknown";
     try {
-      await sendEmail({ to: email, subject: 'Your Manwell verification code', html });
+      const result = await sendEmail({ to: email, subject: 'Your Manwell verification code', html });
+      emailProvider = result.provider || "unknown";
     } catch (emailError) {
       emailSent = false;
       console.error('Failed to send OTP email for user:', email, emailError.message || emailError);
@@ -61,10 +63,16 @@ export const registerUser = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: emailSent ? 'Account created. A verification code has been sent to your email.' : 'Account created but failed to send verification email.',
+      message: emailSent ? 'Account created. A verification code has been sent to your email.' : 'Account created but failed to send verification email. Please contact support.',
       requiresOtp: true,
       email: newUser.email,
       resendAvailable: !emailSent,
+      emailProvider: emailSent ? emailProvider : null,
+      debugInfo: emailSent ? null : {
+        smtpConfigured: !!(process.env.SMTP_USER && process.env.SMTP_HOST),
+        brevoApiConfigured: !!process.env.BREVO_API_KEY,
+        hint: "Check /api/debug/config for email configuration status"
+      }
     });
   } catch (error) {
     res.status(500).json({

@@ -29,4 +29,26 @@ export const verifySmtp = async (req, res) => {
   }
 };
 
+export const getEmailConfig = async (req, res) => {
+  const smtpConfigured = !!(process.env.SMTP_USER && process.env.SMTP_HOST);
+  const brevoApiConfigured = !!process.env.BREVO_API_KEY;
+  const fromEmail = process.env.FROM_EMAIL || "not-set";
+
+  return res.json({
+    smtp: {
+      configured: smtpConfigured,
+      host: smtpConfigured ? process.env.SMTP_HOST : "not-set",
+      port: smtpConfigured ? process.env.SMTP_PORT || "587" : "not-set",
+      user: smtpConfigured ? "***" : "not-set",
+      pass: smtpConfigured ? "***" : "not-set",
+    },
+    brevoApi: {
+      configured: brevoApiConfigured,
+      apiKey: brevoApiConfigured ? "***" : "not-set",
+    },
+    fromEmail,
+    summary: smtpConfigured || brevoApiConfigured ? "✅ At least one email provider configured" : "❌ No email providers configured",
+  });
+};
+
 export default sendTestEmail;
