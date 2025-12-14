@@ -33,6 +33,12 @@ export const sendEmail = async ({ to, subject, html }) => {
     text: html.replace(/<[^>]+>/g, "")
   };
 
+  // Log available providers for debugging
+  const smtpUserSet = !!process.env.SMTP_USER;
+  const smtpPassSet = !!process.env.SMTP_PASS;
+  const apiKeySet = !!process.env.BREVO_API_KEY;
+  console.log(`📧 Email dispatch: to=${to} | SMTP config=${smtpUserSet && smtpPassSet ? "✅" : "❌"} | API key=${apiKeySet ? "✅" : "❌"}`);
+
   // First attempt: SMTP via Nodemailer
   try {
     const info = await transporter.sendMail(mailOptions);
