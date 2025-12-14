@@ -1,9 +1,7 @@
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { Resend } from "resend";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { sendEmail } from "../utils/sendEmail.js";
 
 /**
  * 🔹 Change user password (logged-in user)
@@ -50,16 +48,33 @@ export const requestPasswordReset = async (req, res) => {
 
     const resetLink = `${process.env.CLIENT_URL}/reset-password?token=${token}`;
 
-    await resend.emails.send({
-      from: "Manwell <no-reply@manwell.app>",
+    const html = `
+      <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f7f8fa; padding: 40px 0;">
+        <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+          <div style="background: linear-gradient(135deg, #dc3545, #ff6b6b); padding: 25px; text-align: center; color: #fff;">
+            <h1 style="margin: 0; font-size: 22px;">🔐 Password Reset Request</h1>
+          </div>
+          <div style="padding: 30px; color: #333;">
+            <p style="font-size: 16px;">Hello,</p>
+            <p style="font-size: 15px; line-height: 1.6;">
+              You requested to reset your password. Click the button below to set up a new password for your account.
+            </p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${resetLink}" 
+                style="background: linear-gradient(135deg, #dc3545, #ff6b6b); color: #fff; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-size: 16px; font-weight: 600;">
+                Reset Password
+              </a>
+            </div>
+            <p style="font-size: 14px; color: #666;">If you didn't request this password reset, you can safely ignore this email.</p>
+          </div>
+        </div>
+      </div>
+    `;
+
+    await sendEmail({
       to: email,
       subject: "Password Reset Request",
-      html: `
-        <h2>Password Reset</h2>
-        <p>You requested to reset your password. Click below to proceed:</p>
-        <a href="${resetLink}" style="padding:10px 15px;background:#007bff;color:white;border-radius:6px;text-decoration:none;">Reset Password</a>
-        <p>If you didn’t request this, please ignore this email.</p>
-      `,
+      html
     });
 
     res.status(200).json({ message: "Password reset email sent!" });
@@ -114,15 +129,33 @@ export const sendActivationEmail = async (req, res) => {
 
     const activationLink = `${process.env.CLIENT_URL}/activate-account?token=${token}`;
 
-    await resend.emails.send({
-      from: "Manwell <no-reply@manwell.app>",
+    const html = `
+      <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f7f8fa; padding: 40px 0;">
+        <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+          <div style="background: linear-gradient(135deg, #28a745, #20c997); padding: 25px; text-align: center; color: #fff;">
+            <h1 style="margin: 0; font-size: 22px;">🎉 Welcome to Manwell!</h1>
+          </div>
+          <div style="padding: 30px; color: #333;">
+            <p style="font-size: 16px;">Hello,</p>
+            <p style="font-size: 15px; line-height: 1.6;">
+              Click the button below to activate your account and get started with Manwell.
+            </p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${activationLink}" 
+                style="background: linear-gradient(135deg, #28a745, #20c997); color: #fff; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-size: 16px; font-weight: 600;">
+                Activate Account
+              </a>
+            </div>
+            <p style="font-size: 14px; color: #666;">Welcome aboard! We're excited to have you join Manwell Store.</p>
+          </div>
+        </div>
+      </div>
+    `;
+
+    await sendEmail({
       to: email,
       subject: "Activate Your Manwell Account",
-      html: `
-        <h2>Welcome to Manwell!</h2>
-        <p>Click below to activate your account:</p>
-        <a href="${activationLink}" style="padding:10px 15px;background:#28a745;color:white;border-radius:6px;text-decoration:none;">Activate Account</a>
-      `,
+      html
     });
 
     res.status(200).json({ message: "Activation email sent!" });
