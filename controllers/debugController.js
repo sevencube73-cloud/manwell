@@ -1,4 +1,4 @@
-import sendEmail from "../utils/sendEmail.js";
+import { sendEmail } from "../utils/sendEmail.js";
 
 export const sendTestEmail = async (req, res) => {
   const to = req.body.to || process.env.DEV_TEST_EMAIL;
