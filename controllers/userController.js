@@ -4,14 +4,6 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { sendEmail } from '../utils/sendEmail.js';
 import AdminSetting from '../models/AdminSetting.js'; // Import AdminSetting
-
-// Generate JWT Token
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
-};
-
-// ========================== AUTH & PROFILE ==========================
-
 import { getWelcomeEmailHtml } from '../templates/welcomeEmail.js';
 
 // Generate JWT Token
