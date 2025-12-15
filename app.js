@@ -28,8 +28,13 @@ import couponRoutes from "./routes/couponRoutes.js"
 import dealRoutes from "./routes/dealRoutes.js";
 import adminSettingsRoutes from "./routes/adminSettingsRoutes.js";
 import debugRoutes from "./routes/debugRoutes.js";
+import flashSaleRoutes from "./routes/flashSaleRoutes.js";
+import publicFlashSaleRoutes from "./routes/publicFlashSaleRoutes.js";
+
+import './utils/flashSaleScheduler.js';
 
 import maintenanceMiddleware from "./middleware/maintenanceMiddleware.js";
+
 
 // ✅ Connect to DB
 connectDB();
@@ -90,6 +95,8 @@ app.use("/api/mpesa", mpesaRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/admin/settings", adminSettingsRoutes);
 app.use("/api/debug", debugRoutes);
+app.use("/api/admin/flash-sales", flashSaleRoutes);
+app.use("/api/flash-sales", publicFlashSaleRoutes);
 
 // ✅ Newly added discount and coupon modules
 app.use("/api/discounts", discountRoutes);

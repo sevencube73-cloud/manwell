@@ -2,6 +2,8 @@ import Order from '../models/Order.js';
 import Product from '../models/product.js';
 import Coupon from '../models/Coupon.js';
 import User from '../models/User.js';
+import FlashSale from '../models/FlashSale.js';
+import FlashSaleLog from '../models/FlashSaleLog.js';
 import { sendEmail } from '../utils/sendEmail.js';
 import Transaction from '../models/Transaction.js';
 
@@ -25,6 +27,13 @@ export const createOrder = async (req, res) => {
     if (!orderItems || orderItems.length === 0)
       return res.status(400).json({ message: 'No order items provided' });
 
+    const now = new Date();
+    const activeSales = await FlashSale.find({
+      startTime: { $lte: now },
+      endTime: { $gt: now },
+      status: 'active',
+    });
+
     // Process each order item: check stock. For online payments like Pesapal/Mpesa
     // do not decrement stock here — we'll reserve on successful payment in the callback.
     const processedItems = [];
@@ -34,20 +43,73 @@ export const createOrder = async (req, res) => {
       if (!product)
         return res.status(404).json({ message: `Product not found: ${item.product}` });
 
-      if (item.qty > product.stock)
-        return res
-          .status(400)
-          .json({ message: `Not enough stock for ${product.name}` });
+      let price = product.price;
+      let sale = null;
+      let productInSale = null;
 
-      if (shouldReserveNow) {
-        product.stock -= item.qty;
-        await product.save();
+      // Check if product is in any active flash sale
+      for (const activeSale of activeSales) {
+        const foundProduct = activeSale.products.find(p => p.productId.toString() === product._id.toString());
+        if (foundProduct) {
+          sale = activeSale;
+          productInSale = foundProduct;
+          break;
+        }
+      }
+
+      if (sale && productInSale) {
+        // Flash sale logic
+        price = productInSale.flashPrice;
+
+        // Check flash sale stock
+        if (item.qty > productInSale.stockLimit) {
+          return res.status(400).json({ message: `Not enough flash sale stock for ${product.name}` });
+        }
+
+        // Check per-user limit
+        const userPurchaseCount = await FlashSaleLog.countDocuments({
+          saleId: sale._id,
+          productId: product._id,
+          userId: req.user._id,
+        });
+
+        if (userPurchaseCount + item.qty > sale.perUserLimit) {
+          return res.status(400).json({ message: `You have exceeded the purchase limit for ${product.name} in this flash sale.` });
+        }
+
+        if (shouldReserveNow) {
+          productInSale.stockLimit -= item.qty;
+          product.stock -= item.qty;
+          await sale.save();
+          await product.save();
+
+          // Log the purchase
+          const flashSaleLog = new FlashSaleLog({
+            saleId: sale._id,
+            productId: product._id,
+            userId: req.user._id,
+            quantity: item.qty,
+          });
+          await flashSaleLog.save();
+        }
+
+      } else {
+        // Regular stock check
+        if (item.qty > product.stock)
+          return res
+            .status(400)
+            .json({ message: `Not enough stock for ${product.name}` });
+        
+        if (shouldReserveNow) {
+          product.stock -= item.qty;
+          await product.save();
+        }
       }
 
       processedItems.push({
         product: product._id,
         qty: item.qty,
-        price: product.price,
+        price: price,
         name: product.name,
         image: product.images?.[0]?.url || product.image || ''
       });
@@ -170,7 +232,6 @@ export const createOrder = async (req, res) => {
     res.status(500).json({ message: 'Server error creating order', error: error.message });
   }
 };
-
 // Get all orders (admin)
 export const getAllOrders = async (req, res) => {
   try {

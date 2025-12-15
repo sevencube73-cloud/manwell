@@ -1,6 +1,8 @@
 import Product from '../models/product.js';
 import cloudinary from '../config/cloudinary.js';
 
+import FlashSale from '../models/FlashSale.js';
+
 // List products (with optional search and category filter)
 
 
@@ -41,7 +43,28 @@ export const getProducts = async (req, res) => {
     }
 
     const products = await query;
-    res.json(products);
+
+    const now = new Date();
+    const activeSales = await FlashSale.find({
+      startTime: { $lte: now },
+      endTime: { $gt: now },
+      status: 'active',
+    });
+
+    const productsWithFlashSales = products.map(product => {
+      const productObj = product.toObject();
+      for (const sale of activeSales) {
+        const productInSale = sale.products.find(p => p.productId.toString() === product._id.toString());
+        if (productInSale) {
+          productObj.flashPrice = productInSale.flashPrice;
+          productObj.flashSale = sale;
+          break; // Stop after finding the first sale for a product
+        }
+      }
+      return productObj;
+    });
+
+    res.json(productsWithFlashSales);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching products', error: error.message });
   }
@@ -51,6 +74,23 @@ export const getProductById = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ message: 'Product not found' });
+
+    const now = new Date();
+    const flashSale = await FlashSale.findOne({
+      'products.productId': product._id,
+      startTime: { $lte: now },
+      endTime: { $gt: now },
+      status: 'active',
+    });
+
+    if (flashSale) {
+      const productInSale = flashSale.products.find(p => p.productId.toString() === product._id.toString());
+      const productObj = product.toObject();
+      productObj.flashPrice = productInSale.flashPrice;
+      productObj.flashSale = flashSale;
+      return res.json(productObj);
+    }
+
     res.json(product);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching product', error: error.message });
