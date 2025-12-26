@@ -6,6 +6,7 @@ import FlashSale from '../models/FlashSale.js';
 import FlashSaleLog from '../models/FlashSaleLog.js';
 import { sendEmail } from '../utils/sendEmail.js';
 import Transaction from '../models/Transaction.js';
+import ProductVariant from '../models/ProductVariant.js';
 
 // Create a new order
 export const createOrder = async (req, res) => {
@@ -34,18 +35,34 @@ export const createOrder = async (req, res) => {
       status: 'active',
     });
 
-    // Process each order item: check stock. For online payments like Pesapal/Mpesa
-    // do not decrement stock here — we'll reserve on successful payment in the callback.
     const processedItems = [];
+    // For online payments like Pesapal/Mpesa, separate stock reservation might be needed.
+    // However, typically you assume Pay on Delivery reserves immediately.
+    // For online, current logic sets `shouldReserveNow = true` ONLY if Pay on Delivery?
+    // Original logic: `shouldReserveNow = !(paymentMethod === 'Pesapal' || paymentMethod === 'Mpesa');`
+    // This implies stock is reserved LATER upon payment success for online methods.
+
     const shouldReserveNow = !(paymentMethod === 'Pesapal' || paymentMethod === 'Mpesa');
+
     for (const item of orderItems) {
       const product = await Product.findById(item.product);
       if (!product)
         return res.status(404).json({ message: `Product not found: ${item.product}` });
 
-      let price = product.price;
+      let price = product.basePrice || product.price;
       let sale = null;
       let productInSale = null;
+      let variant = null;
+
+      // Check if variant is used
+      if (item.variantId) {
+        variant = await ProductVariant.findById(item.variantId);
+        if (!variant) return res.status(404).json({ message: `Variant not found for product ${product.name}` });
+        if (variant.productId.toString() !== product._id.toString()) {
+          return res.status(400).json({ message: `Variant mismatch for product ${product.name}` });
+        }
+        price = variant.price;
+      }
 
       // Check if product is in any active flash sale
       for (const activeSale of activeSales) {
@@ -58,10 +75,11 @@ export const createOrder = async (req, res) => {
       }
 
       if (sale && productInSale) {
-        // Flash sale logic
+        // Flash sale logic (usually applies to base product, but if logic allows variants, we might need adjustments)
+        // For now, assume Flash Sale price overrides ALL variant prices if configured.
         price = productInSale.flashPrice;
 
-        // Check flash sale stock
+        // Check flash sale stock limits
         if (item.qty > productInSale.stockLimit) {
           return res.status(400).json({ message: `Not enough flash sale stock for ${product.name}` });
         }
@@ -79,9 +97,16 @@ export const createOrder = async (req, res) => {
 
         if (shouldReserveNow) {
           productInSale.stockLimit -= item.qty;
-          product.stock -= item.qty;
+          // Decrement actual stock as well
+          if (variant) {
+            variant.stock -= item.qty;
+            await variant.save();
+          } else {
+            product.stock -= item.qty;
+            await product.save();
+          }
+
           await sale.save();
-          await product.save();
 
           // Log the purchase
           const flashSaleLog = new FlashSaleLog({
@@ -95,14 +120,22 @@ export const createOrder = async (req, res) => {
 
       } else {
         // Regular stock check
-        if (item.qty > product.stock)
-          return res
-            .status(400)
-            .json({ message: `Not enough stock for ${product.name}` });
-        
-        if (shouldReserveNow) {
-          product.stock -= item.qty;
-          await product.save();
+        if (variant) {
+          if (item.qty > variant.stock)
+            return res.status(400).json({ message: `Not enough stock for ${product.name} (Variant: ${item.sku || variant.sku})` });
+
+          if (shouldReserveNow) {
+            variant.stock -= item.qty;
+            await variant.save();
+          }
+        } else {
+          if (item.qty > product.stock)
+            return res.status(400).json({ message: `Not enough stock for ${product.name}` });
+
+          if (shouldReserveNow) {
+            product.stock -= item.qty;
+            await product.save();
+          }
         }
       }
 
@@ -111,7 +144,10 @@ export const createOrder = async (req, res) => {
         qty: item.qty,
         price: price,
         name: product.name,
-        image: product.images?.[0]?.url || product.image || ''
+        image: product.images?.[0]?.url || product.image || '',
+        variantId: variant ? variant._id : undefined,
+        sku: variant ? variant.sku : (product.sku || item.sku || 'N/A'),
+        attributes: variant ? variant.attributes : (item.attributes || {})
       });
     }
 
@@ -157,9 +193,13 @@ export const createOrder = async (req, res) => {
         // Build items HTML
         const itemsHtml = (order.orderItems || []).map(it => {
           const img = it.image ? `<img src="${it.image}" alt="${it.name}" style="width:48px;height:48px;object-fit:cover;border-radius:4px;margin-right:8px"/>` : '';
+          const attrStr = it.attributes && Object.keys(it.attributes).length > 0
+            ? `<br/><small style="color:#666">${Object.entries(it.attributes).map(([k, v]) => `${k}:${v}`).join(', ')}</small>`
+            : '';
+
           return `
             <tr>
-              <td style="padding:8px;vertical-align:middle">${img}<strong>${it.name}</strong></td>
+              <td style="padding:8px;vertical-align:middle">${img}<strong>${it.name}</strong>${attrStr}</td>
               <td style="padding:8px;vertical-align:middle;text-align:center">${it.qty}</td>
               <td style="padding:8px;vertical-align:middle;text-align:right">KES ${Number(it.price).toFixed(2)}</td>
             </tr>
@@ -490,6 +530,22 @@ export const updatePaymentStatus = async (req, res) => {
         try {
           const product = await Product.findById(item.product);
           if (!product) continue;
+
+          if (item.variantId) {
+            const variant = await ProductVariant.findById(item.variantId);
+            if (variant) {
+              if (item.qty > variant.stock) {
+                console.warn(`Insufficient variant stock while marking order paid: ${product.name} - ${variant.sku}`);
+              } else {
+                variant.stock -= item.qty;
+                await variant.save();
+              }
+              // Continue to next item since variant stock managed
+              continue;
+            }
+          }
+
+          // Simple product stock
           if (item.qty > product.stock) {
             console.warn(`Insufficient stock while marking order paid: ${product._id}`);
             // continue without failing; admin should handle stock shortages
@@ -548,6 +604,16 @@ export const deleteOrder = async (req, res) => {
     if (!['Delivered', 'Shipped'].includes(order.status)) {
       for (const item of order.orderItems) {
         try {
+          // Restore variant stock first
+          if (item.variantId) {
+            const variant = await ProductVariant.findById(item.variantId);
+            if (variant) {
+              variant.stock = (variant.stock || 0) + (item.qty || 0);
+              await variant.save();
+              continue;
+            }
+          }
+
           const product = await Product.findById(item.product);
           if (!product) continue;
           product.stock = (product.stock || 0) + (item.qty || 0);
