@@ -1,4 +1,5 @@
 import Product from '../models/product.js';
+import ProductVariant from '../models/ProductVariant.js';
 import cloudinary from '../config/cloudinary.js';
 
 import FlashSale from '../models/FlashSale.js';
@@ -75,6 +76,19 @@ export const getProductById = async (req, res) => {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ message: 'Product not found' });
 
+    const productObj = product.toObject();
+
+    // Fetch variants if product has them
+    if (product.hasVariants) {
+      const variants = await ProductVariant.find({
+        productId: product._id,
+        status: { $ne: 'inactive' }
+      }).sort({ createdAt: 1 });
+
+      productObj.variants = variants;
+    }
+
+    // Check for flash sales
     const now = new Date();
     const flashSale = await FlashSale.findOne({
       'products.productId': product._id,
@@ -85,13 +99,11 @@ export const getProductById = async (req, res) => {
 
     if (flashSale) {
       const productInSale = flashSale.products.find(p => p.productId.toString() === product._id.toString());
-      const productObj = product.toObject();
       productObj.flashPrice = productInSale.flashPrice;
       productObj.flashSale = flashSale;
-      return res.json(productObj);
     }
 
-    res.json(product);
+    res.json(productObj);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching product', error: error.message });
   }
@@ -100,15 +112,18 @@ export const getProductById = async (req, res) => {
 // create product (admin) - images uploaded with multer-storage-cloudinary in req.files
 export const createProduct = async (req, res) => {
   try {
-    const { name, description, price, category, stock } = req.body;
+    const { name, description, basePrice, category, brand, hasVariants, tags, status } = req.body;
     const images = (req.files || []).map((f) => ({ url: f.path, public_id: f.filename || f.public_id }));
 
     const product = new Product({
       name,
       description,
-      price,
+      basePrice,
       category,
-      stock: stock || 0,
+      brand: brand || '',
+      hasVariants: hasVariants || false,
+      tags: tags || [],
+      status: status || 'active',
       images,
     });
 
@@ -133,12 +148,15 @@ export const updateProduct = async (req, res) => {
     }
 
     // Update other fields
-    const { name, description, price, category, stock } = req.body;
+    const { name, description, basePrice, category, brand, hasVariants, tags, status } = req.body;
     if (name !== undefined) product.name = name;
     if (description !== undefined) product.description = description;
-    if (price !== undefined) product.price = price;
+    if (basePrice !== undefined) product.basePrice = basePrice;
     if (category !== undefined) product.category = category;
-    if (stock !== undefined) product.stock = stock;
+    if (brand !== undefined) product.brand = brand;
+    if (hasVariants !== undefined) product.hasVariants = hasVariants;
+    if (tags !== undefined) product.tags = tags;
+    if (status !== undefined) product.status = status;
 
     await product.save();
     res.json(product);

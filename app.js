@@ -31,6 +31,11 @@ import debugRoutes from "./routes/debugRoutes.js";
 import flashSaleRoutes from "./routes/flashSaleRoutes.js";
 import publicFlashSaleRoutes from "./routes/publicFlashSaleRoutes.js";
 
+// 🔥 Variant System Routes
+import variantAttributeRoutes from "./routes/variantAttributeRoutes.js";
+import productVariantRoutes from "./routes/productVariantRoutes.js";
+import cartRoutes from "./routes/cartRoutes.js";
+
 import './utils/flashSaleScheduler.js';
 
 import maintenanceMiddleware from "./middleware/maintenanceMiddleware.js";
@@ -45,10 +50,10 @@ const app = express();
 app.use(
   cors({
     origin: [
-       // deployed frontend
+      // deployed frontend
       "https://manwellstore.com",
       "https://www.manwellstore.com",
-       // local dev
+      // local dev
       "http://localhost:3000",
       "http://localhost:3001",
     ],
@@ -102,6 +107,11 @@ app.use("/api/flash-sales", publicFlashSaleRoutes);
 app.use("/api/discounts", discountRoutes);
 app.use("/api/coupons", couponRoutes);
 app.use("/api/deals", dealRoutes);
+
+// 🔥 Variant System Routes
+app.use("/api/variant-attributes", variantAttributeRoutes);
+app.use("/api/variants", productVariantRoutes);
+app.use("/api/cart", cartRoutes);
 
 // ✅ Root route
 app.get("/", (req, res) => {

@@ -1,5 +1,6 @@
 import express from 'express';
 import { getProducts, getProductById, createProduct, updateProduct, deleteProduct, getCategories } from '../controllers/productController.js';
+import { createVariant, bulkCreateVariants, getVariantsByProduct } from '../controllers/productVariantController.js';
 import { protect, admin } from '../middleware/authMiddleware.js';
 import parser from '../middleware/upload.js';
 
@@ -35,5 +36,10 @@ router.get('/:id', getProductById);
 router.post('/', protect, admin, parser.array('images', 3), createProduct);
 router.put('/:id', protect, admin, parser.array('images', 3), updateProduct);
 router.delete('/:id', protect, admin, deleteProduct);
+
+// 🔥 Product Variant Routes
+router.post('/:productId/variants', protect, admin, createVariant);
+router.post('/:productId/variants/bulk', protect, admin, bulkCreateVariants);
+router.get('/:productId/variants', getVariantsByProduct);
 
 export default router;

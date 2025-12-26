@@ -2,8 +2,18 @@ import mongoose from 'mongoose';
 
 const orderItemSchema = new mongoose.Schema({
   product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+
+  // 🔥 VARIANT SUPPORT - This is where stock tracking happens!
+  variantId: { type: mongoose.Schema.Types.ObjectId, ref: 'ProductVariant', default: null },
+  sku: { type: String, trim: true }, // Snapshot of variant SKU
+  attributes: { type: Map, of: String }, // Snapshot: { Size: "M", Color: "Red" }
+
   qty: { type: Number, required: true },
-  price: { type: Number, required: true },
+  price: { type: Number, required: true }, // Price at time of order
+
+  // Product name/image snapshot (for display even if product deleted)
+  name: { type: String },
+  image: { type: String },
 });
 
 const shippingSchema = new mongoose.Schema({
