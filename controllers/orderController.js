@@ -36,12 +36,6 @@ export const createOrder = async (req, res) => {
     });
 
     const processedItems = [];
-    // For online payments like Pesapal/Mpesa, separate stock reservation might be needed.
-    // However, typically you assume Pay on Delivery reserves immediately.
-    // For online, current logic sets `shouldReserveNow = true` ONLY if Pay on Delivery?
-    // Original logic: `shouldReserveNow = !(paymentMethod === 'Pesapal' || paymentMethod === 'Mpesa');`
-    // This implies stock is reserved LATER upon payment success for online methods.
-
     const shouldReserveNow = !(paymentMethod === 'Pesapal' || paymentMethod === 'Mpesa');
 
     for (const item of orderItems) {
@@ -53,6 +47,7 @@ export const createOrder = async (req, res) => {
       let sale = null;
       let productInSale = null;
       let variant = null;
+      let attributes = {};
 
       // Check if variant is used
       if (item.variantId) {
@@ -62,6 +57,14 @@ export const createOrder = async (req, res) => {
           return res.status(400).json({ message: `Variant mismatch for product ${product.name}` });
         }
         price = variant.price;
+        // Safely convert attributes Map to POJO
+        if (variant.attributes) {
+          if (variant.attributes instanceof Map) {
+            attributes = Object.fromEntries(variant.attributes);
+          } else {
+            attributes = variant.attributes;
+          }
+        }
       }
 
       // Check if product is in any active flash sale
@@ -75,16 +78,12 @@ export const createOrder = async (req, res) => {
       }
 
       if (sale && productInSale) {
-        // Flash sale logic (usually applies to base product, but if logic allows variants, we might need adjustments)
-        // For now, assume Flash Sale price overrides ALL variant prices if configured.
         price = productInSale.flashPrice;
 
-        // Check flash sale stock limits
         if (item.qty > productInSale.stockLimit) {
           return res.status(400).json({ message: `Not enough flash sale stock for ${product.name}` });
         }
 
-        // Check per-user limit
         const userPurchaseCount = await FlashSaleLog.countDocuments({
           saleId: sale._id,
           productId: product._id,
@@ -97,7 +96,6 @@ export const createOrder = async (req, res) => {
 
         if (shouldReserveNow) {
           productInSale.stockLimit -= item.qty;
-          // Decrement actual stock as well
           if (variant) {
             variant.stock -= item.qty;
             await variant.save();
@@ -105,10 +103,8 @@ export const createOrder = async (req, res) => {
             product.stock -= item.qty;
             await product.save();
           }
-
           await sale.save();
 
-          // Log the purchase
           const flashSaleLog = new FlashSaleLog({
             saleId: sale._id,
             productId: product._id,
@@ -119,7 +115,6 @@ export const createOrder = async (req, res) => {
         }
 
       } else {
-        // Regular stock check
         if (variant) {
           if (item.qty > variant.stock)
             return res.status(400).json({ message: `Not enough stock for ${product.name} (Variant: ${item.sku || variant.sku})` });
@@ -147,11 +142,10 @@ export const createOrder = async (req, res) => {
         image: product.images?.[0]?.url || product.image || '',
         variantId: variant ? variant._id : undefined,
         sku: variant ? variant.sku : (product.sku || item.sku || 'N/A'),
-        attributes: variant ? variant.attributes : (item.attributes || {})
+        attributes: attributes // Use sanitized attributes
       });
     }
 
-    // Optional: validate coupon if provided
     if (couponCode) {
       const coupon = await Coupon.findOne({ code: couponCode.toUpperCase(), active: true });
       if (!coupon)
@@ -183,86 +177,147 @@ export const createOrder = async (req, res) => {
 
     await order.save();
 
-    // Send order confirmation email (do not fail order creation if email fails)
+    // Send styled HTML email
     (async () => {
       try {
         const companyName = process.env.COMPANY_NAME || 'Manwell';
         const frontend = process.env.FRONTEND_URL || 'https://manwellstore.com';
         const orderNumber = order.orderId || order._id;
+        const user = await User.findById(req.user._id).select('name email');
 
-        // Build items HTML
+        // Styles
+        const mainColor = '#111827';
+        const secondaryColor = '#4f46e5';
+        const greyColor = '#6b7280';
+        const lightBg = '#f9fafb';
+        const border = '1px solid #e5e7eb';
+
         const itemsHtml = (order.orderItems || []).map(it => {
-          const img = it.image ? `<img src="${it.image}" alt="${it.name}" style="width:48px;height:48px;object-fit:cover;border-radius:4px;margin-right:8px"/>` : '';
-          const attrStr = it.attributes && Object.keys(it.attributes).length > 0
-            ? `<br/><small style="color:#666">${Object.entries(it.attributes).map(([k, v]) => `${k}:${v}`).join(', ')}</small>`
-            : '';
+          const img = it.image ? `<img src="${it.image}" alt="" style="width:50px;height:50px;object-fit:cover;border-radius:6px;margin-right:12px;float:left">` : '';
+
+          // Format attributes cleanly
+          let attrs = '';
+          if (it.attributes && Object.keys(it.attributes).length > 0) {
+            const parts = Object.entries(it.attributes).map(([k, v]) => `<span style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px;color:#374151;margin-right:4px">${k}: ${v}</span>`);
+            attrs = `<div style="margin-top:4px;">${parts.join('')}</div>`;
+          }
 
           return `
-            <tr>
-              <td style="padding:8px;vertical-align:middle">${img}<strong>${it.name}</strong>${attrStr}</td>
-              <td style="padding:8px;vertical-align:middle;text-align:center">${it.qty}</td>
-              <td style="padding:8px;vertical-align:middle;text-align:right">KES ${Number(it.price).toFixed(2)}</td>
+            <tr style="border-bottom:${border}">
+              <td style="padding:16px 8px;">
+                 ${img}
+                 <div style="overflow:hidden">
+                    <div style="font-weight:600;font-size:14px;color:#111">${it.name}</div>
+                    ${attrs}
+                 </div>
+              </td>
+              <td style="padding:16px 8px;text-align:center;font-size:14px">x${it.qty}</td>
+              <td style="padding:16px 8px;text-align:right;font-weight:600;font-size:14px">KES ${Number(it.price).toLocaleString()}</td>
             </tr>
           `;
         }).join('');
 
-        const subtotal = Number(order.totalPrice || 0).toFixed(2);
-        const shipping = Number(order.shippingFee || 0).toFixed(2);
-        const tax = '0.00';
-        const total = Number(order.finalAmount || order.totalPrice || 0).toFixed(2);
+        const subtotal = Number(order.totalPrice || 0).toLocaleString();
+        const shipping = Number(order.shippingFee || 0).toLocaleString();
+        const total = Number(order.finalAmount || order.totalPrice || 0).toLocaleString();
 
-        const user = await User.findById(req.user._id).select('name email');
-
-        const subject = `Your ${companyName} order #${orderNumber} is confirmed`;
+        const subject = `Confirmed: Your order #${orderNumber}`;
 
         const html = `
-          <div style="font-family:Arial,Helvetica,sans-serif;color:#111">
-            <h2>Thank you for your order, ${user?.name || 'Customer'}!</h2>
-            <p>We've received your order and are getting it ready to ship. Below are the details:</p>
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          </head>
+          <body style="margin:0;padding:0;background-color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+            <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;margin-top:20px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+               
+               <!-- Header -->
+               <div style="background:${mainColor};padding:24px;text-align:center;">
+                  <h1 style="color:#ffffff;margin:0;font-size:20px;font-weight:600;letter-spacing:0.5px">Order Confirmed</h1>
+               </div>
 
-            <h3>Order Summary</h3>
-            <table style="width:100%;border-collapse:collapse">
-              <thead>
-                <tr>
-                  <th style="text-align:left;padding:8px">Item</th>
-                  <th style="text-align:center;padding:8px">Qty</th>
-                  <th style="text-align:right;padding:8px">Price</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${itemsHtml}
-              </tbody>
-            </table>
+               <!-- Status Section -->
+               <div style="padding:32px 24px;text-align:center;border-bottom:${border}">
+                  <div style="width:48px;height:48px;background:${secondaryColor};color:white;border-radius:50%;line-height:48px;font-size:24px;margin:0 auto 16px;">✓</div>
+                  <h2 style="margin:0 0 8px;font-size:24px;color:#111">Thanks for your order!</h2>
+                  <p style="margin:0;color:${greyColor};font-size:16px">Hi ${user?.name || 'there'}, we're getting your order ready.</p>
+                  <p style="margin-top:8px;font-size:14px;color:${greyColor}">Order #${orderNumber}</p>
+               </div>
 
-            <p style="margin-top:12px">Subtotal: <strong>KES ${subtotal}</strong><br/>Shipping: <strong>KES ${shipping}</strong><br/>Tax/VAT: <strong>KES ${tax}</strong></p>
-            <p style="font-size:18px">Total Price: <strong>KES ${total}</strong></p>
+               <!-- Items Table -->
+               <div style="padding:0 24px;">
+                  <table style="width:100%;border-collapse:collapse;">
+                     <thead>
+                        <tr style="border-bottom:2px solid ${lightBg}">
+                           <th style="padding:12px 8px;text-align:left;font-size:12px;text-transform:uppercase;color:${greyColor}">Item</th>
+                           <th style="padding:12px 8px;text-align:center;font-size:12px;text-transform:uppercase;color:${greyColor}">Qty</th>
+                           <th style="padding:12px 8px;text-align:right;font-size:12px;text-transform:uppercase;color:${greyColor}">Price</th>
+                        </tr>
+                     </thead>
+                     <tbody>
+                        ${itemsHtml}
+                     </tbody>
+                  </table>
+               </div>
 
-            <p>Order Number: <strong>#${orderNumber}</strong><br/>Order Date: <strong>${new Date(order.createdAt).toLocaleString()}</strong></p>
+               <!-- Totals -->
+               <div style="background:${lightBg};padding:24px;margin-top:20px;">
+                  <table style="width:100%">
+                     <tr>
+                        <td style="padding:4px;color:${greyColor}">Subtotal</td>
+                        <td style="padding:4px;text-align:right;font-weight:500">KES ${subtotal}</td>
+                     </tr>
+                     <tr>
+                        <td style="padding:4px;color:${greyColor}">Shipping</td>
+                        <td style="padding:4px;text-align:right;font-weight:500">KES ${shipping}</td>
+                     </tr>
+                     ${order.discountValue > 0 ? `
+                     <tr>
+                        <td style="padding:4px;color:#059669">Discount</td>
+                        <td style="padding:4px;text-align:right;color:#059669">- KES ${Number(order.discountValue).toLocaleString()}</td>
+                     </tr>` : ''}
+                     <tr>
+                        <td style="padding:12px 4px;font-weight:700;font-size:18px;border-top:1px solid #d1d5db;margin-top:8px">Total</td>
+                        <td style="padding:12px 4px;text-align:right;font-weight:700;font-size:18px;border-top:1px solid #d1d5db;margin-top:8px;color:${secondaryColor}">KES ${total}</td>
+                     </tr>
+                  </table>
+               </div>
 
-            <h3>Shipping & Delivery</h3>
-            <p>Shipping Address:<br/>
-              ${order.shippingAddress?.fullName || ''}<br/>
-              ${order.shippingAddress?.address || ''}<br/>
-              ${order.shippingAddress?.city || ''} ${order.shippingAddress?.county || ''}<br/>
-            </p>
-            <p>Payment Method: <strong>${order.paymentMethod}</strong></p>
-            <p>Estimated Delivery Window: <strong>5-7 business days</strong></p>
+               <!-- Shipping Info -->
+               <div style="padding:24px;border-top:${border}">
+                  <h3 style="margin:0 0 12px;font-size:16px;color:#111">Delivery Details</h3>
+                  <div style="font-size:14px;color:#4b5563;line-height:1.5">
+                     <strong>Address:</strong><br>
+                     ${order.shippingAddress?.fullName}<br>
+                     ${order.shippingAddress?.address}<br>
+                     ${order.shippingAddress?.city}, ${order.shippingAddress?.county || ''}
+                  </div>
+                  <div style="font-size:14px;color:#4b5563;line-height:1.5;margin-top:12px">
+                     <strong>Payment Method:</strong> ${order.paymentMethod}
+                  </div>
+               </div>
 
-            <p style="margin-top:18px;text-align:center">
-              <a href="${frontend}/order/${order._id}/track" style="background:#4f46e5;color:#fff;padding:12px 18px;border-radius:6px;text-decoration:none;display:inline-block">View/Manage Your Order</a>
-            </p>
+               <!-- Footer -->
+               <div style="text-align:center;padding:24px;border-top:${border}">
+                  <a href="${frontend}/order/${order._id}/track" style="display:inline-block;background:${secondaryColor};color:white;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:600;font-size:14px">Track Order</a>
+                  <p style="margin-top:24px;font-size:12px;color:#9ca3af">
+                     Need help? Reply to this email.<br>
+                     &copy; ${new Date().getFullYear()} ${companyName}.
+                  </p>
+               </div>
 
-            <p>If you have any questions, reply to this email or visit our Help Center.</p>
-            <p>Warm regards,<br/>The ${companyName} Team</p>
-          </div>
+            </div>
+          </body>
+          </html>
         `;
 
         if (user && user.email) {
           await sendEmail({ to: user.email, subject, html });
-          console.log('Order confirmation email sent to', user.email);
         }
       } catch (emailErr) {
-        console.error('Failed to send order confirmation email:', emailErr.message || emailErr);
+        console.error('Failed to send email:', emailErr);
       }
     })();
 
@@ -272,6 +327,7 @@ export const createOrder = async (req, res) => {
     res.status(500).json({ message: 'Server error creating order', error: error.message });
   }
 };
+
 // Get all orders (admin)
 export const getAllOrders = async (req, res) => {
   try {
@@ -295,7 +351,6 @@ export const getOrderById = async (req, res) => {
 
     if (!order) return res.status(404).json({ message: 'Order not found' });
 
-    // Allow admins or the order owner to view
     if (req.user && req.user.role === 'admin') return res.json(order);
     if (req.user && order.user && order.user._id && order.user._id.toString() === req.user._id.toString()) {
       return res.json(order);
@@ -341,7 +396,6 @@ export const getOrderTrack = async (req, res) => {
     const order = await Order.findById(req.params.id).populate('statusHistory.updatedBy', 'name email');
     if (!order) return res.status(404).json({ message: 'Order not found' });
 
-    // Allow admins or the order owner to view
     if (req.user && req.user.role === 'admin') return res.json({ status: order.status, history: order.statusHistory });
     if (req.user && order.user && order.user.toString() === req.user._id.toString()) {
       return res.json({ status: order.status, history: order.statusHistory });
@@ -361,7 +415,6 @@ export const adminUpdateOrderTrack = async (req, res) => {
     const order = await Order.findById(orderId);
     if (!order) return res.status(404).json({ message: 'Order not found' });
 
-    // Validate status value against schema enum if provided
     const allowedStatuses = ['Pending', 'Processing', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled'];
     if (status && !allowedStatuses.includes(status)) {
       return res.status(400).json({ message: `Invalid status value. Allowed: ${allowedStatuses.join(', ')}` });
@@ -369,7 +422,6 @@ export const adminUpdateOrderTrack = async (req, res) => {
 
     const entry = { status: status || order.status, note: note || '', updatedBy: req.user?._id, date: new Date() };
 
-    // Use atomic update to push history and optionally set top-level status to avoid validation timing issues
     const update = { $push: { statusHistory: entry } };
     if (status) update.$set = { status };
 
@@ -417,7 +469,6 @@ export const sendPaymentReminder = async (req, res) => {
       <p>If you've already paid, please ignore this message.</p>
     `;
 
-    // Save reminder message to order
     const reminderMessage = `Payment reminder sent for order ${order.orderId || order._id} - Amount due: KES ${(order.finalAmount || order.totalPrice).toFixed(2)}`;
     order.reminders = order.reminders || [];
     order.reminders.push({
@@ -433,7 +484,6 @@ export const sendPaymentReminder = async (req, res) => {
       }
     } catch (emailErr) {
       console.error('Failed to send payment reminder email:', emailErr.message || emailErr);
-      // Do not fail the whole request if email failed
     }
 
     res.json({ message: 'Payment reminder sent' });
@@ -450,14 +500,12 @@ export const getReminderMessages = async (req, res) => {
       .select('orderId _id finalAmount totalPrice paymentStatus reminders createdAt')
       .sort({ createdAt: -1 });
 
-    // Flatten reminders with order context
     const allReminders = [];
     orders.forEach((order) => {
       if (order.reminders && order.reminders.length > 0) {
         order.reminders.forEach((reminder) => {
           allReminders.push({
             _id: reminder._id,
-            // orderId (for display) and orderDbId (the actual DB _id) - keep display-friendly orderId
             orderId: order.orderId || order._id,
             orderDbId: order._id,
             message: reminder.message,
@@ -481,12 +529,10 @@ export const getReminderMessages = async (req, res) => {
 export const markReminderAsRead = async (req, res) => {
   try {
     const { orderId, reminderId } = req.body;
-    // orderId may be either the DB _id or the human-friendly orderId (e.g. M004)
     let order = null;
     try {
       order = await Order.findById(orderId);
     } catch (e) {
-      // invalid ObjectId or other error -- we'll try to find by orderId field
       order = null;
     }
     if (!order) {
@@ -494,7 +540,6 @@ export const markReminderAsRead = async (req, res) => {
     }
     if (!order) return res.status(404).json({ message: 'Order not found' });
 
-    // Ensure user owns the order
     if (order.user.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'Not authorized' });
     }
@@ -523,9 +568,7 @@ export const updatePaymentStatus = async (req, res) => {
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ message: 'Order not found' });
 
-    // If marking Paid and order was unpaid, finalize stock and create transaction
     if (paymentStatus === 'Paid' && order.paymentStatus !== 'Paid') {
-      // Decrement stock (if not already processed)
       for (const item of order.orderItems) {
         try {
           const product = await Product.findById(item.product);
@@ -540,15 +583,12 @@ export const updatePaymentStatus = async (req, res) => {
                 variant.stock -= item.qty;
                 await variant.save();
               }
-              // Continue to next item since variant stock managed
               continue;
             }
           }
 
-          // Simple product stock
           if (item.qty > product.stock) {
             console.warn(`Insufficient stock while marking order paid: ${product._id}`);
-            // continue without failing; admin should handle stock shortages
           } else {
             product.stock -= item.qty;
             await product.save();
@@ -562,7 +602,6 @@ export const updatePaymentStatus = async (req, res) => {
       order.status = order.status === 'Pending' ? 'Processing' : order.status;
       await order.save();
 
-      // Record transaction (admin-marked)
       try {
         const tx = new Transaction({
           user: order.user,
@@ -580,7 +619,6 @@ export const updatePaymentStatus = async (req, res) => {
       return res.json({ message: 'Order marked as Paid', order });
     }
 
-    // If marking Unpaid
     if (paymentStatus === 'Unpaid') {
       order.paymentStatus = 'Unpaid';
       await order.save();
@@ -600,11 +638,9 @@ export const deleteOrder = async (req, res) => {
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ message: 'Order not found' });
 
-    // If order not delivered or shipped, restore product stock
     if (!['Delivered', 'Shipped'].includes(order.status)) {
       for (const item of order.orderItems) {
         try {
-          // Restore variant stock first
           if (item.variantId) {
             const variant = await ProductVariant.findById(item.variantId);
             if (variant) {
