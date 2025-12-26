@@ -57,14 +57,10 @@ export const createOrder = async (req, res) => {
           return res.status(400).json({ message: `Variant mismatch for product ${product.name}` });
         }
         price = variant.price;
-        // Safely convert attributes Map to POJO
-        if (variant.attributes) {
-          if (variant.attributes instanceof Map) {
-            attributes = Object.fromEntries(variant.attributes);
-          } else {
-            attributes = variant.attributes;
-          }
-        }
+
+        // Fix: Ensure attributes are a plain object
+        const variantObj = variant.toObject({ flattenMaps: true });
+        attributes = variantObj.attributes || {};
       }
 
       // Check if product is in any active flash sale
@@ -243,7 +239,7 @@ export const createOrder = async (req, res) => {
                   <div style="width:48px;height:48px;background:${secondaryColor};color:white;border-radius:50%;line-height:48px;font-size:24px;margin:0 auto 16px;">✓</div>
                   <h2 style="margin:0 0 8px;font-size:24px;color:#111">Thanks for your order!</h2>
                   <p style="margin:0;color:${greyColor};font-size:16px">Hi ${user?.name || 'there'}, we're getting your order ready.</p>
-                  <p style="margin-top:8px;font-size:14px;color:${greyColor}">Order #${orderNumber}</p>
+                  <p style="margin:0;font-size:14px;color:${greyColor};margin-top:4px">Order ID: #${orderNumber}</p>
                </div>
 
                <!-- Items Table -->
