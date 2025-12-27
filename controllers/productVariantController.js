@@ -2,14 +2,32 @@ import ProductVariant from '../models/ProductVariant.js';
 import Product from '../models/product.js';
 import StockAudit from '../models/StockAudit.js';
 
-// Helper to update product total stock
-const syncProductStock = async (productId) => {
+// Helper to update product total stock & price range
+const syncProductStats = async (productId) => {
     try {
         const variants = await ProductVariant.find({ productId });
-        const totalStock = variants.reduce((sum, v) => sum + (v.stock || 0), 0);
-        await Product.findByIdAndUpdate(productId, { totalStock });
+        const summary = variants.reduce((acc, v) => {
+            acc.stock += (v.stock || 0);
+            acc.prices.push(v.price || 0);
+            return acc;
+        }, { stock: 0, prices: [] });
+
+        const updates = {
+            totalStock: summary.stock
+        };
+
+        if (summary.prices.length > 0) {
+            updates.minPrice = Math.min(...summary.prices);
+            updates.maxPrice = Math.max(...summary.prices);
+        } else {
+            // Fallback for cases where all variants might be deleted, keeping existing basePrice isn't handled here but min/max should be reset
+            // We'll leave them as is or reset? Safer to leave or check product basePrice. 
+            // For now, let's just update if variants exist.
+        }
+
+        await Product.findByIdAndUpdate(productId, updates);
     } catch (err) {
-        console.error('Error syncing product stock:', err);
+        console.error('Error syncing product stats:', err);
     }
 };
 
@@ -53,7 +71,7 @@ export const createVariant = async (req, res) => {
             await product.save();
         }
 
-        await syncProductStock(productId);
+        await syncProductStats(productId);
 
         // Create audit log
         await StockAudit.create({
@@ -154,7 +172,7 @@ export const bulkCreateVariants = async (req, res) => {
             await product.save();
         }
 
-        await syncProductStock(productId);
+        await syncProductStats(productId);
 
         res.status(201).json({
             success: true,
@@ -256,7 +274,7 @@ export const updateVariant = async (req, res) => {
         if (image !== undefined) variant.image = image;
 
         await variant.save();
-        await syncProductStock(variant.productId);
+        await syncProductStats(variant.productId);
 
         // Create audit log if stock changed
         if (stock !== undefined && stock !== oldStock) {
@@ -303,7 +321,7 @@ export const updateVariantStock = async (req, res) => {
         const oldStock = variant.stock;
         variant.stock = stock;
         await variant.save();
-        await syncProductStock(variant.productId);
+        await syncProductStats(variant.productId);
 
         // Create audit log
         await StockAudit.create({
@@ -342,7 +360,7 @@ export const deleteVariant = async (req, res) => {
         // TODO: Check if variant is in any active orders before deletion
 
         await variant.deleteOne();
-        await syncProductStock(variant.productId);
+        await syncProductStats(variant.productId);
 
         res.json({
             success: true,

@@ -2,8 +2,11 @@ import express from 'express';
 import { getAdminStats, getDiscountedCarousel, setDiscountedCarousel, getAdmins, getUnverifiedCustomers, verifyCustomerEmail } from '../controllers/adminController.js';
 import { protect, admin } from '../middleware/authMiddleware.js';
 import { setAdminPin, verifyAdminPin, getAdminLockStatus, toggleAppLock } from '../controllers/appLockController.js';
+import { getProducts } from '../controllers/productController.js';
 
 const router = express.Router();
+
+router.get('/products', protect, admin, getProducts);
 
 router.get('/stats', getAdminStats);
 router.get('/dashboard-data', getAdminStats);
