@@ -178,7 +178,11 @@ export const createOrder = async (req, res) => {
       try {
         const companyName = process.env.COMPANY_NAME || 'Manwell';
         const frontend = process.env.FRONTEND_URL || 'https://manwellstore.com';
-        const orderNumber = order.orderId || order._id;
+
+        // Convert to POJO to avoid Mongoose internals (Map, $_parent) leaking into email
+        const orderObj = order.toObject({ flattenMaps: true });
+
+        const orderNumber = orderObj.orderId || orderObj._id;
         const user = await User.findById(req.user._id).select('name email');
 
         // Styles
@@ -188,12 +192,12 @@ export const createOrder = async (req, res) => {
         const lightBg = '#f9fafb';
         const border = '1px solid #e5e7eb';
 
-        const itemsHtml = (order.orderItems || []).map(it => {
+        const itemsHtml = (orderObj.orderItems || []).map(it => {
           const img = it.image ? `<img src="${it.image}" alt="" style="width:50px;height:50px;object-fit:cover;border-radius:6px;margin-right:12px;float:left">` : '';
 
           // Format attributes cleanly
           let attrs = '';
-          if (it.attributes && Object.keys(it.attributes).length > 0) {
+          if (it.attributes && typeof it.attributes === 'object' && Object.keys(it.attributes).length > 0) {
             const parts = Object.entries(it.attributes).map(([k, v]) => `<span style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px;color:#374151;margin-right:4px">${k}: ${v}</span>`);
             attrs = `<div style="margin-top:4px;">${parts.join('')}</div>`;
           }
@@ -213,9 +217,9 @@ export const createOrder = async (req, res) => {
           `;
         }).join('');
 
-        const subtotal = Number(order.totalPrice || 0).toLocaleString();
-        const shipping = Number(order.shippingFee || 0).toLocaleString();
-        const total = Number(order.finalAmount || order.totalPrice || 0).toLocaleString();
+        const subtotal = Number(orderObj.totalPrice || 0).toLocaleString();
+        const shipping = Number(orderObj.shippingFee || 0).toLocaleString();
+        const total = Number(orderObj.finalAmount || orderObj.totalPrice || 0).toLocaleString();
 
         const subject = `Confirmed: Your order #${orderNumber}`;
 
@@ -269,10 +273,10 @@ export const createOrder = async (req, res) => {
                         <td style="padding:4px;color:${greyColor}">Shipping</td>
                         <td style="padding:4px;text-align:right;font-weight:500">KES ${shipping}</td>
                      </tr>
-                     ${order.discountValue > 0 ? `
+                     ${orderObj.discountValue > 0 ? `
                      <tr>
                         <td style="padding:4px;color:#059669">Discount</td>
-                        <td style="padding:4px;text-align:right;color:#059669">- KES ${Number(order.discountValue).toLocaleString()}</td>
+                        <td style="padding:4px;text-align:right;color:#059669">- KES ${Number(orderObj.discountValue).toLocaleString()}</td>
                      </tr>` : ''}
                      <tr>
                         <td style="padding:12px 4px;font-weight:700;font-size:18px;border-top:1px solid #d1d5db;margin-top:8px">Total</td>
@@ -286,18 +290,18 @@ export const createOrder = async (req, res) => {
                   <h3 style="margin:0 0 12px;font-size:16px;color:#111">Delivery Details</h3>
                   <div style="font-size:14px;color:#4b5563;line-height:1.5">
                      <strong>Address:</strong><br>
-                     ${order.shippingAddress?.fullName}<br>
-                     ${order.shippingAddress?.address}<br>
-                     ${order.shippingAddress?.city}, ${order.shippingAddress?.county || ''}
+                     ${orderObj.shippingAddress?.fullName}<br>
+                     ${orderObj.shippingAddress?.address}<br>
+                     ${orderObj.shippingAddress?.city}, ${orderObj.shippingAddress?.county || ''}
                   </div>
                   <div style="font-size:14px;color:#4b5563;line-height:1.5;margin-top:12px">
-                     <strong>Payment Method:</strong> ${order.paymentMethod}
+                     <strong>Payment Method:</strong> ${orderObj.paymentMethod}
                   </div>
                </div>
 
                <!-- Footer -->
                <div style="text-align:center;padding:24px;border-top:${border}">
-                  <a href="${frontend}/order/${order._id}/track" style="display:inline-block;background:${secondaryColor};color:white;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:600;font-size:14px">Track Order</a>
+                  <a href="${frontend}/order/${orderObj._id}/track" style="display:inline-block;background:${secondaryColor};color:white;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:600;font-size:14px">Track Order</a>
                   <p style="margin-top:24px;font-size:12px;color:#9ca3af">
                      Need help? Reply to this email.<br>
                      &copy; ${new Date().getFullYear()} ${companyName}.
