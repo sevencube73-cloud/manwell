@@ -2,6 +2,17 @@ import ProductVariant from '../models/ProductVariant.js';
 import Product from '../models/product.js';
 import StockAudit from '../models/StockAudit.js';
 
+// Helper to update product total stock
+const syncProductStock = async (productId) => {
+    try {
+        const variants = await ProductVariant.find({ productId });
+        const totalStock = variants.reduce((sum, v) => sum + (v.stock || 0), 0);
+        await Product.findByIdAndUpdate(productId, { totalStock });
+    } catch (err) {
+        console.error('Error syncing product stock:', err);
+    }
+};
+
 // @desc    Create single product variant
 // @route   POST /api/products/:productId/variants
 // @access  Admin
@@ -41,6 +52,8 @@ export const createVariant = async (req, res) => {
             product.hasVariants = true;
             await product.save();
         }
+
+        await syncProductStock(productId);
 
         // Create audit log
         await StockAudit.create({
@@ -140,6 +153,8 @@ export const bulkCreateVariants = async (req, res) => {
             product.hasVariants = true;
             await product.save();
         }
+
+        await syncProductStock(productId);
 
         res.status(201).json({
             success: true,
@@ -241,6 +256,7 @@ export const updateVariant = async (req, res) => {
         if (image !== undefined) variant.image = image;
 
         await variant.save();
+        await syncProductStock(variant.productId);
 
         // Create audit log if stock changed
         if (stock !== undefined && stock !== oldStock) {
@@ -287,6 +303,7 @@ export const updateVariantStock = async (req, res) => {
         const oldStock = variant.stock;
         variant.stock = stock;
         await variant.save();
+        await syncProductStock(variant.productId);
 
         // Create audit log
         await StockAudit.create({
@@ -325,6 +342,7 @@ export const deleteVariant = async (req, res) => {
         // TODO: Check if variant is in any active orders before deletion
 
         await variant.deleteOne();
+        await syncProductStock(variant.productId);
 
         res.json({
             success: true,

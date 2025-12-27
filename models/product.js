@@ -14,6 +14,9 @@ const productSchema = new mongoose.Schema({
   // 🔥 Variant Support
   hasVariants: { type: Boolean, default: false },
 
+  // Aggregated stock from variants (or standalone stock if no variants, though current logic says variants only)
+  totalStock: { type: Number, default: 0 },
+
   images: [
     {
       url: { type: String },
