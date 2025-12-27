@@ -197,3 +197,37 @@ export const getCategories = async (req, res) => {
     res.status(500).json({ message: 'Error fetching categories', error: error.message });
   }
 };
+
+// Sync all products stats (Admin)
+export const syncAllProductsStats = async (req, res) => {
+  try {
+    const products = await Product.find({});
+    let updatedCount = 0;
+
+    for (const product of products) {
+      if (product.hasVariants) {
+        const variants = await ProductVariant.find({ productId: product._id });
+        if (variants.length > 0) {
+          const summary = variants.reduce((acc, v) => {
+            acc.stock += (v.stock || 0);
+            acc.prices.push(v.price || 0);
+            return acc;
+          }, { stock: 0, prices: [] });
+
+          product.totalStock = summary.stock;
+          if (summary.prices.length > 0) {
+            product.minPrice = Math.min(...summary.prices);
+            product.maxPrice = Math.max(...summary.prices);
+          }
+          await product.save();
+          updatedCount++;
+        }
+      }
+    }
+
+    res.json({ message: `Synced stats for ${updatedCount} products` });
+  } catch (error) {
+    console.error('Sync Error:', error);
+    res.status(500).json({ message: 'Error syncing products', error: error.message });
+  }
+};

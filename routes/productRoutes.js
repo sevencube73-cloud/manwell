@@ -1,5 +1,5 @@
 import express from 'express';
-import { getProducts, getProductById, createProduct, updateProduct, deleteProduct, getCategories } from '../controllers/productController.js';
+import { getProducts, getProductById, createProduct, updateProduct, deleteProduct, getCategories, syncAllProductsStats } from '../controllers/productController.js';
 import { createVariant, bulkCreateVariants, getVariantsByProduct } from '../controllers/productVariantController.js';
 import { protect, admin } from '../middleware/authMiddleware.js';
 import parser from '../middleware/upload.js';
@@ -38,6 +38,7 @@ router.put('/:id', protect, admin, parser.array('images', 3), updateProduct);
 router.delete('/:id', protect, admin, deleteProduct);
 
 // 🔥 Product Variant Routes
+router.post('/sync-stats', protect, admin, syncAllProductsStats);
 router.post('/:productId/variants', protect, admin, createVariant);
 router.post('/:productId/variants/bulk', protect, admin, bulkCreateVariants);
 router.get('/:productId/variants', getVariantsByProduct);
