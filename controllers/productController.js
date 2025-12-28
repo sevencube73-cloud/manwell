@@ -62,6 +62,12 @@ export const getProducts = async (req, res) => {
           break; // Stop after finding the first sale for a product
         }
       }
+
+      // 🛠️ Ensure stock reflects totalStock for variants
+      if (productObj.hasVariants && productObj.totalStock > 0) {
+        productObj.stock = productObj.totalStock;
+      }
+
       return productObj;
     });
 
