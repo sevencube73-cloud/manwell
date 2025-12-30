@@ -35,6 +35,7 @@ import publicFlashSaleRoutes from "./routes/publicFlashSaleRoutes.js";
 import variantAttributeRoutes from "./routes/variantAttributeRoutes.js";
 import productVariantRoutes from "./routes/productVariantRoutes.js";
 import cartRoutes from "./routes/cartRoutes.js";
+import posRoutes from "./routes/posRoutes.js";
 
 import './utils/flashSaleScheduler.js';
 
@@ -112,6 +113,7 @@ app.use("/api/deals", dealRoutes);
 app.use("/api/variant-attributes", variantAttributeRoutes);
 app.use("/api/variants", productVariantRoutes);
 app.use("/api/cart", cartRoutes);
+app.use("/api/pos", posRoutes);
 
 // ✅ Root route
 app.get("/", (req, res) => {
