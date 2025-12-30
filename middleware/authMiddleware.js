@@ -80,3 +80,8 @@ export const admin = (req, res, next) => {
   if (req.user && req.user.role === 'admin') next();
   else res.status(403).json({ message: 'Admin access required' });
 };
+
+export const staffOrAdmin = (req, res, next) => {
+  if (req.user && (req.user.role === 'admin' || req.user.role === 'staff')) next();
+  else res.status(403).json({ message: 'Staff or Admin access required' });
+};

@@ -16,6 +16,9 @@ import {
   updateSavedAddress,
   deleteSavedAddress,
   setDefaultAddress,
+  getStaffs,
+  makeUserStaff,
+  revokeUserStaff,
 } from '../controllers/userController.js';
 import { verifyOtp, resendOtp } from '../controllers/authController.js';
 import { protect, admin } from '../middleware/authMiddleware.js';
@@ -48,5 +51,8 @@ router.put('/customers/:id/verify', protect, admin, verifyCustomerByAdmin);
 router.delete('/customers/:id', protect, admin, deleteCustomer);
 router.put('/:id/make-admin', protect, admin, makeUserAdmin);
 router.put('/:id/revoke-admin', protect, admin, revokeUserAdmin);
+router.get('/staffs', protect, admin, getStaffs);
+router.put('/:id/make-staff', protect, admin, makeUserStaff);
+router.put('/:id/revoke-staff', protect, admin, revokeUserStaff);
 
 export default router;

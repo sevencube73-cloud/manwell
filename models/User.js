@@ -8,7 +8,7 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true },
     phone: { type: String },
     address: { type: String },
-    role: { type: String, enum: ['user', 'admin'], default: 'user' },
+    role: { type: String, enum: ['user', 'admin', 'staff'], default: 'user' },
     isActive: { type: Boolean, default: true },
 
     // 🔐 Saved Shipping Addresses

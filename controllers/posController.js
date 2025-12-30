@@ -22,7 +22,8 @@ export const posSearchProducts = asyncHandler(async (req, res) => {
             filter.$or = [
                 { name: { $regex: query, $options: 'i' } },
                 { brand: { $regex: query, $options: 'i' } },
-                { sku: { $regex: query, $options: 'i' } } // Assuming product has SKU
+                { sku: { $regex: query, $options: 'i' } },
+                { category: { $regex: query, $options: 'i' } }
             ];
         }
     }

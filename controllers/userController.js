@@ -307,6 +307,54 @@ export const revokeUserAdmin = async (req, res) => {
   }
 };
 
+// @desc Promote a user to staff (admin only)
+// @route PUT /api/users/:id/make-staff
+// @access Admin
+export const makeUserStaff = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (user.role === 'staff') return res.status(400).json({ message: 'User is already staff' });
+
+    user.role = 'staff';
+    await user.save();
+
+    res.json({ message: 'User promoted to staff successfully', user });
+  } catch (error) {
+    res.status(500).json({ message: 'Error promoting user to staff', error: error.message });
+  }
+};
+
+// @desc Revoke staff role (demote to user)
+// @route PUT /api/users/:id/revoke-staff
+// @access Admin
+export const revokeUserStaff = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (user.role !== 'staff') return res.status(400).json({ message: 'User is not staff' });
+
+    user.role = 'user';
+    await user.save();
+
+    res.json({ message: 'Staff privileges revoked; user is now a regular user', user });
+  } catch (error) {
+    res.status(500).json({ message: 'Error revoking staff role', error: error.message });
+  }
+};
+
+// @desc Get all staff members
+// @route GET /api/users/staffs
+// @access Admin
+export const getStaffs = async (req, res) => {
+  try {
+    const staffs = await User.find({ role: 'staff' }).select('-password');
+    res.json(staffs);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching staff members', error: error.message });
+  }
+};
+
 // @desc Get all saved shipping addresses for user
 // @route GET /api/users/addresses
 // @access Protected
