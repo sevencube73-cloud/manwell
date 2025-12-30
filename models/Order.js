@@ -36,7 +36,7 @@ const orderSchema = new mongoose.Schema(
     totalPrice: { type: Number, required: true },
 
     // ✅ Discount & Coupon Support
-    discountType: { type: String, enum: ['percent', 'fixed'], default: null },
+    discountType: { type: String, enum: ['percent', 'fixed'] }, // Removed default: null to fix enum validation
     discountValue: { type: Number, default: 0 },
     couponCode: { type: String, default: null },
     finalAmount: { type: Number, required: true },

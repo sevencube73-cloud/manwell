@@ -179,6 +179,7 @@ export const posCreateOrder = asyncHandler(async (req, res) => {
             paymentStatus: 'Paid',
             totalPrice: subtotal,
             discountValue: discountValue,
+            discountType: (discount && discount.value > 0) ? discount.type : undefined,
             shippingFee: 0,
             finalAmount: finalAmount,
             status: 'Delivered', // Immediate completion
