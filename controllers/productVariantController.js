@@ -201,7 +201,9 @@ export const getVariantsByProduct = async (req, res) => {
             filter.status = status;
         }
 
-        const variants = await ProductVariant.find(filter).sort({ createdAt: 1 });
+        const variants = await ProductVariant.find(filter)
+            .populate('productId', 'name images')
+            .sort({ createdAt: 1 });
 
         res.json({
             success: true,
