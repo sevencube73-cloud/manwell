@@ -93,7 +93,7 @@ export const deleteFlashSale = asyncHandler(async (req, res) => {
   const flashSale = await FlashSale.findById(req.params.id);
 
   if (flashSale) {
-    await flashSale.remove();
+    await flashSale.deleteOne();
     res.json({ message: 'Flash sale removed' });
   } else {
     res.status(404);

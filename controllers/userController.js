@@ -401,7 +401,7 @@ export const deleteSavedAddress = async (req, res) => {
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    user.shippingAddresses.id(addressId).deleteOne();
+    user.shippingAddresses.pull({ _id: addressId });
     await user.save();
 
     res.json(user.shippingAddresses);
