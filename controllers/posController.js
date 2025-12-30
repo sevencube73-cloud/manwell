@@ -194,6 +194,28 @@ export const posCreateOrder = asyncHandler(async (req, res) => {
 
         await order.save();
 
+        // 4. Create Transaction record for the Paid POS order
+        try {
+            const transactionId = `POS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+            const posTransaction = new Transaction({
+                user: order.user,
+                mpesaReceiptNumber: transactionId,
+                phoneNumber: 'POS-WalkIn',
+                amount: finalAmount,
+                status: 'Success',
+                rawResponse: {
+                    source: 'POS',
+                    paymentMethod: paymentMethod,
+                    orderId: order._id
+                }
+            });
+            await posTransaction.save();
+            console.log(`POS Transaction created: ${transactionId}`);
+        } catch (txError) {
+            console.error('Failed to create POS transaction record:', txError.message);
+            // Don't fail the order response just because transaction log failed, but log it.
+        }
+
         res.status(201).json(order);
     } catch (error) {
         console.error('POS Create Order Error:', error);

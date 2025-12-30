@@ -605,7 +605,7 @@ export const updatePaymentStatus = async (req, res) => {
       try {
         const tx = new Transaction({
           user: order.user,
-          mpesaReceiptNumber: null,
+          mpesaReceiptNumber: `MANUAL-${order._id}-${Date.now()}`,
           phoneNumber: order.shippingAddress?.phone || undefined,
           amount: order.finalAmount || order.totalPrice || 0,
           status: 'AdminMarkedPaid',
