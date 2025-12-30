@@ -160,22 +160,15 @@ export const posCreateOrder = asyncHandler(async (req, res) => {
             phone: 'N/A'
         },
         paymentMethod: paymentMethod,
-        paymentResult: {
-            id: `POS-${Date.now()}`,
-            status: 'COMPLETED',
-            update_time: String(new Date()),
-            email_address: req.user.email
-        },
+        // Note: paymentResult is not in current Order schema, but we can rely on isPaid logic if we add it or just set status.
+        // Current schema uses paymentStatus enum 'Unpaid' | 'Paid'.
+        paymentStatus: 'Paid',
         totalPrice: subtotal,
         discountValue: discountValue,
         shippingFee: 0,
         finalAmount: finalAmount,
-        isPaid: true,
-        paidAt: Date.now(),
-        isDelivered: true,
-        deliveredAt: Date.now(),
         status: 'Delivered', // Immediate completion
-        orderSource: 'POS' // New field if schema supported, otherwise just rely on status
+        // orderSource: 'POS' // if schema updated
     });
 
     if (customerId) {
