@@ -66,7 +66,12 @@ export const getProducts = async (req, res) => {
       // 🛠️ Ensure stock reflects totalStock for variants
       if (productObj.hasVariants && productObj.totalStock > 0) {
         productObj.stock = productObj.totalStock;
+      } else {
+        productObj.stock = productObj.stock || productObj.totalStock || 0;
       }
+
+      // Ensure a top-level price property for consistency
+      productObj.price = productObj.flashPrice || productObj.minPrice || productObj.basePrice || productObj.price || 0;
 
       return productObj;
     });
@@ -118,7 +123,7 @@ export const getProductById = async (req, res) => {
 // create product (admin) - images uploaded with multer-storage-cloudinary in req.files
 export const createProduct = async (req, res) => {
   try {
-    const { name, description, basePrice, category, brand, hasVariants, tags, status } = req.body;
+    const { name, description, basePrice, category, brand, hasVariants, tags, status, stock } = req.body;
     const images = (req.files || []).map((f) => ({ url: f.path, public_id: f.filename || f.public_id }));
 
     const product = new Product({
@@ -131,6 +136,8 @@ export const createProduct = async (req, res) => {
       tags: tags || [],
       status: status || 'active',
       images,
+      stock: stock || 0,
+      totalStock: stock || 0,
     });
 
     await product.save();
@@ -154,7 +161,7 @@ export const updateProduct = async (req, res) => {
     }
 
     // Update other fields
-    const { name, description, basePrice, category, brand, hasVariants, tags, status } = req.body;
+    const { name, description, basePrice, category, brand, hasVariants, tags, status, stock } = req.body;
     if (name !== undefined) product.name = name;
     if (description !== undefined) product.description = description;
     if (basePrice !== undefined) product.basePrice = basePrice;
@@ -163,6 +170,12 @@ export const updateProduct = async (req, res) => {
     if (hasVariants !== undefined) product.hasVariants = hasVariants;
     if (tags !== undefined) product.tags = tags;
     if (status !== undefined) product.status = status;
+    if (stock !== undefined) {
+      product.stock = stock;
+      if (!product.hasVariants) {
+        product.totalStock = stock;
+      }
+    }
 
     await product.save();
     res.json(product);
@@ -225,10 +238,20 @@ export const syncAllProductsStats = async (req, res) => {
             product.minPrice = Math.min(...summary.prices);
             product.maxPrice = Math.max(...summary.prices);
           }
-          await product.save();
-          updatedCount++;
+        } else {
+          // Has variant flag but no actual variants in DB
+          product.minPrice = product.basePrice;
+          product.maxPrice = product.basePrice;
+          product.totalStock = 0;
         }
+      } else {
+        // Simple product
+        product.minPrice = product.basePrice;
+        product.maxPrice = product.basePrice;
+        // Keep existing totalStock or sync with a standalone field if needed
       }
+      await product.save();
+      updatedCount++;
     }
 
     res.json({ message: `Synced stats for ${updatedCount} products` });

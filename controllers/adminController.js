@@ -15,7 +15,7 @@ export const getAdminStats = async (req, res) => {
     // Products
     const products = await Product.find();
     const totalProducts = products.length;
-    const totalStock = products.reduce((sum, p) => sum + (p.stock || 0), 0);
+    const totalStock = products.reduce((sum, p) => sum + (p.totalStock || p.stock || 0), 0);
 
     // Customers
     const totalCustomers = await User.countDocuments({ role: 'customer' });
@@ -98,7 +98,7 @@ export const getDiscountedCarousel = async (req, res) => {
 export const setDiscountedCarousel = async (req, res) => {
   try {
     const { productIds, discountPercent } = req.body;
-    
+
     if (!Array.isArray(productIds)) {
       return res.status(400).json({ message: 'productIds must be an array' });
     }

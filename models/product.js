@@ -14,8 +14,9 @@ const productSchema = new mongoose.Schema({
   // 🔥 Variant Support
   hasVariants: { type: Boolean, default: false },
 
-  // Aggregated stock from variants (or standalone stock if no variants, though current logic says variants only)
+  // Aggregated stock from variants (or standalone stock if no variants)
   totalStock: { type: Number, default: 0 },
+  stock: { type: Number, default: 0 },
 
   images: [
     {
@@ -33,6 +34,10 @@ const productSchema = new mongoose.Schema({
   // SEO & Marketing
   tags: [{ type: String }],
   featured: { type: Boolean, default: false },
+
+  // Price ranges (cached from variants)
+  minPrice: { type: Number },
+  maxPrice: { type: Number },
 
 }, { timestamps: true });
 
